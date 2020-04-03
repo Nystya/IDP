@@ -1,0 +1,113 @@
+syntax = "proto3";
+
+package api;
+
+message Void {
+
+}
+
+message ErrorCode {
+    int32 err = 1;
+    string msg = 2;
+}
+
+message ID {
+    string ID = 1;
+}
+
+message Service {
+    ID ID = 1;
+    string service = 2;
+}
+
+message SkillCategory {
+    ID ID = 1;
+    string category = 2;
+}
+
+message Skill {
+    ID ID = 1;
+    SkillCategory category = 2;
+    string skill = 3;
+}
+
+message CreateJob {
+    ID EUID = 1;
+    Service service = 2;
+    SkillCategory category = 3;
+    float wage = 4;
+    int32 places = 5;
+    string title = 6;
+    string exp = 7;
+    string description = 8;
+}
+
+message Job {
+    ID EUID = 1;
+    Service service = 2;
+    SkillCategory category = 3;
+    float wage = 4;
+    int32 places = 5;
+    string title = 6;
+    string exp = 7;
+    string description = 8;
+    string postTime = 9;
+    int32 nrOfCandidates = 10;
+    float employerRating = 11;
+    float moneySpent = 12;
+}
+
+message JobApplication {
+    ID JID = 1;
+    ID FUID = 2;
+}
+
+message JobSelection {
+    ID JID = 1;
+    ID FUID = 2;
+}
+
+message EmployerProfile {
+    ID EUID = 1;
+    string phone = 2;
+    string lastName = 3;
+    string firstName = 4;
+    float rating = 5;
+    int32 jobsPosted = 6;
+    float moneySpent = 7;
+}
+
+message FreelancerProfile {
+    ID FUID = 1;
+    string phone = 2;
+    string lastName = 3;
+    string firstName = 4;
+    float rating = 5;
+    float balance = 6;
+    string description = 7;
+    string photo = 8;
+    Skill mainSkill = 9;
+}
+
+service Profiles {
+    rpc EditEmployerProfile(EmployerProfile) returns (ErrorCode);
+    rpc EditFreelancerProfile(FreelancerProfile) returns (ErrorCode);
+    rpc GetEmployerProfile(ID) returns (EmployerProfile);
+    rpc GetFreelancerProfile(ID) returns (FreelancerProfile);
+}
+
+service Jobs {
+    rpc GetAllServices(Void) returns (stream Service);
+    rpc GetAllSkillCategories(Skill) returns (stream SkillCategory);
+    rpc GetAllSkills(SkillCategory) returns (stream Skill);
+
+    rpc PostJob(CreateJob) returns (Job);
+    rpc GetJobs(ID) returns (stream Job);
+    rpc ApplyForJob(JobApplication) returns (ErrorCode);
+    rpc GetApplicants(ID) returns (stream FreelancerProfile);
+    rpc SelectForJob(JobSelection) returns (ErrorCode);
+    rpc GetAcceptedFreelancers(ID) returns (stream FreelancerProfile);
+    rpc GetAcceptedJobs(ID) returns (stream Job);
+    rpc GetHistoryJobs(ID) returns (stream Job);
+    rpc FinishJob(ID) returns (ErrorCode);
+}

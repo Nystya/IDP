@@ -1,0 +1,7 @@
+{
+  "DBURL": "graph_db",
+  "DBUser": "neo4j",
+  "DBPass": "parola_idp",
+  "transport": "tcp",
+  "port": "8001"
+}
