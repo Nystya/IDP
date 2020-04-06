@@ -27,7 +27,7 @@ services:
       NEO4J_AUTH: neo4j/parola_idp
 
   authrevproxy:
-    image: catalinvajaiala/idp
+    image: catalinvajaiala/idp:latest
     volumes:
       - .:/code
     ports:
@@ -36,7 +36,7 @@ services:
       - authdb
 
   jobs_manager:
-    image: catalinvajaiala/idp_jobs_manager
+    image: catalinvajaiala/idp_jobs_manager:latest
     depends_on:
       - graph_db
       - authrevproxy

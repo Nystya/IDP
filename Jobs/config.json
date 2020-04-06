@@ -1,5 +1,5 @@
 {
-  "DBURL": "graph_db",
+  "DBURL": "bolt://neo4j:parola_idp@graph_db:7687",
   "DBUser": "neo4j",
   "DBPass": "parola_idp",
   "transport": "tcp",
