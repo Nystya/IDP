@@ -3,6 +3,7 @@ package database
 import (
 	"github.com/neo4j/neo4j-go-driver/neo4j"
 	"log"
+	"time"
 )
 import "idp/Jobs/models"
 
@@ -20,11 +21,14 @@ type Neo4jDatabase struct {
 }
 
 func NewNeo4jDatabase(uri, username, password string) *Neo4jDatabase {
+	time.Sleep(6 * time.Second)
+	log.Println("Connecting to Neo4j...")
 	driver, err := neo4j.NewDriver(uri, neo4j.BasicAuth(username, password, ""))
 	if err != nil {
 		log.Println("Could not connect to Neo4j: ", err.Error())
-		return nil
+		panic(err.Error())
 	}
+	log.Println("Connected succesfully to Neo4j!")
 
 	return &Neo4jDatabase{
 		Driver: driver,
