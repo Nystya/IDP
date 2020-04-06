@@ -3,13 +3,44 @@ version: '3'
 services:
   authdb:
     image: postgres
+    restart: always
+    environment:
+      POSTGRES_PASSWORD: parola_idp
+      POSTGRES_USER: postgres
+      POSTGRES_DB: idp_users
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+    ports:
+      - "5432:5432"
+
+  graph_db:
+    image: neo4j:latest
+    ports:
+    - "7474:7474"
+    - "7687:7687"
+    volumes:
+    - neo4j_volume:/data
+    - neo4j_volume:/logs
+    - neo4j_volume:/var/lib/neo4j/import
+    - neo4j_volume:/plugins
+    environment:
+      NEO4J_AUTH: neo4j/parola_idp
 
   authrevproxy:
-    build: ./Authentication/
-    command: python manage.py runserver 0.0.0.0:8000
+    image: catalinvajaiala/idp
     volumes:
       - .:/code
     ports:
       - "8000:8000"
     depends_on:
       - authdb
+
+  jobs_manager:
+    image: catalinvajaiala/idp_jobs_manager
+    depends_on:
+      - graph_db
+      - authrevproxy
+
+volumes:
+  postgres_data:
+  neo4j_volume:
