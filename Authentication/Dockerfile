@@ -8,4 +8,7 @@ RUN pip install --upgrade pip
 RUN pip install -r requirements.txt
 COPY . /code/
 
-CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
+RUN python3 manage.py makemigrations
+RUN python3 manage.py migrate
+
+ENTRYPOINT ["./docker-entrypoint.sh"]

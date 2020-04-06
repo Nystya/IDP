@@ -26,7 +26,7 @@ SECRET_KEY = '*1*10hvd$%p8r024th4up8@xi=_=mu9g@d2v%m&o=5*z#=apjm'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["*"]
 
 
 # Application definition
@@ -91,9 +91,9 @@ WSGI_APPLICATION = 'IDP.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'postgres',
+        'NAME': 'idp_users',
         'USER': 'postgres',
-        'PASSWORD': 'postgres',
+        'PASSWORD': 'parola_idp',
         'HOST': 'authdb',
         'PORT': 5432,
     }
