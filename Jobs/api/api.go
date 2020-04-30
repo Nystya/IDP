@@ -217,31 +217,31 @@ func (js *JobServer) GetJobs(filter *pb.Filter, server pb.Jobs_GetJobsServer) er
 }
 
 func (js *JobServer) ApplyForJob(context.Context, *pb.JobApplication) (*pb.ErrorCode, error) {
-	panic("implement me")
+	return nil
 }
 
 func (js *JobServer) GetApplicants(*pb.ID, pb.Jobs_GetApplicantsServer) error {
-	panic("implement me")
+	return nil
 }
 
 func (js *JobServer) SelectForJob(context.Context, *pb.JobSelection) (*pb.ErrorCode, error) {
-	panic("implement me")
+	return nil, nil
 }
 
 func (js *JobServer) GetAcceptedFreelancers(*pb.ID, pb.Jobs_GetAcceptedFreelancersServer) error {
-	panic("implement me")
+	return nil
 }
 
 func (js *JobServer) GetAcceptedJobs(*pb.ID, pb.Jobs_GetAcceptedJobsServer) error {
-	panic("implement me")
+	return nil
 }
 
 func (js *JobServer) GetHistoryJobs(*pb.ID, pb.Jobs_GetHistoryJobsServer) error {
-	panic("implement me")
+	return nil
 }
 
 func (js *JobServer) FinishJob(context.Context, *pb.ID) (*pb.ErrorCode, error) {
-	panic("implement me")
+	return nil, nil
 }
 
 func RunServer(ctx context.Context, conf *ServerConfig) error {
