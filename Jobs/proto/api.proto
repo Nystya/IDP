@@ -15,7 +15,7 @@ message ID {
     string ID = 1;
 }
 
-message Service {
+message ServiceCategory {
     ID ID = 1;
     string service = 2;
 }
@@ -33,7 +33,7 @@ message Skill {
 
 message CreateJob {
     ID EUID = 1;
-    Service service = 2;
+    ServiceCategory service = 2;
     SkillCategory category = 3;
     float wage = 4;
     int32 places = 5;
@@ -43,18 +43,26 @@ message CreateJob {
 }
 
 message Job {
-    ID EUID = 1;
-    Service service = 2;
-    SkillCategory category = 3;
-    float wage = 4;
-    int32 places = 5;
-    string title = 6;
-    string exp = 7;
-    string description = 8;
-    string postTime = 9;
-    int32 nrOfCandidates = 10;
-    float employerRating = 11;
-    float moneySpent = 12;
+    ID ID = 1;
+    ID EUID = 2;
+    ServiceCategory service = 3;
+    SkillCategory category = 4;
+    float wage = 5;
+    int32 places = 6;
+    string title = 7;
+    string exp = 8;
+    string description = 9;
+    string postTime = 10;
+    int32 nrOfCandidates = 11;
+    float employerRating = 12;
+    float moneySpent = 13;
+}
+
+message Filter {
+    ID ID = 1;
+    string title = 2;
+    float wageMin = 3;
+    float employerRating = 4;
 }
 
 message JobApplication {
@@ -97,12 +105,13 @@ service Profiles {
 }
 
 service Jobs {
-    rpc GetAllServices(Void) returns (stream Service);
-    rpc GetAllSkillCategories(Skill) returns (stream SkillCategory);
+    rpc GetAllServices(Void) returns (stream ServiceCategory);
+    rpc GetAllSkillCategories(ServiceCategory) returns (stream SkillCategory);
     rpc GetAllSkills(SkillCategory) returns (stream Skill);
 
     rpc PostJob(CreateJob) returns (Job);
-    rpc GetJobs(ID) returns (stream Job);
+    rpc GetJob(ID) returns (Job);
+    rpc GetJobs(Filter) returns (stream Job);
     rpc ApplyForJob(JobApplication) returns (ErrorCode);
     rpc GetApplicants(ID) returns (stream FreelancerProfile);
     rpc SelectForJob(JobSelection) returns (ErrorCode);

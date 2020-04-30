@@ -18,6 +18,9 @@ services:
     ports:
     - "7474:7474"
     - "7687:7687"
+    expose:
+      - "7474"
+      - "7687"
     volumes:
     - neo4j_volume:/data
     - neo4j_volume:/logs
@@ -25,6 +28,12 @@ services:
     - neo4j_volume:/plugins
     environment:
       NEO4J_AUTH: neo4j/parola_idp
+      NEO4J_dbms.security.allow_csv_import_from_file_urls: "true"
+
+  init_graph_db:
+    image: catalinvajaiala/idp_graph_init:latest
+    depends_on:
+      - graph_db
 
   authrevproxy:
     image: catalinvajaiala/idp:latest

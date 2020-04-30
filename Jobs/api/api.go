@@ -4,13 +4,13 @@ import (
 	"context"
 	"google.golang.org/grpc"
 	"idp/Jobs/models"
-	"idp/Jobs/proto"
 	"idp/Jobs/usecases"
 	"log"
 	"net"
 	"os"
 	"os/signal"
 	pb "idp/Jobs/proto"
+	"strings"
 	"time"
 )
 
@@ -30,24 +30,130 @@ func NewJobServer(conf *ServerConfig) *JobServer {
 	}
 }
 
-func (js *JobServer) GetAllServices(*proto.Void, proto.Jobs_GetAllServicesServer) error {
-	panic("implement me")
+type SendError struct {
+	Err string
 }
 
-func (js *JobServer) GetAllSkillCategories(*proto.Skill, proto.Jobs_GetAllSkillCategoriesServer) error {
-	panic("implement me")
+func (err SendError) Error() string {
+	return err.Err
 }
 
-func (js *JobServer) GetAllSkills(*proto.SkillCategory, proto.Jobs_GetAllSkillsServer) error {
-	panic("implement me")
+func convertJobToProto(job *models.Job) *pb.Job {
+	return &pb.Job{
+		ID:                   &pb.ID{ID: job.ID},
+		EUID:                 &pb.ID{ID: job.EUID},
+		Service:              &pb.ServiceCategory{
+			ID:                   	&pb.ID{ID: job.Service.ID},
+			Service:      			job.Service.Service,
+		},
+		Category:             &pb.SkillCategory{
+			ID:                   &pb.ID{ID: job.Category.ID},
+			Category:             job.Category.Category,
+		},
+		Wage:                 job.Wage,
+		Places:               job.Places,
+		Title:                job.Title,
+		Exp:                  job.Experience,
+		Description:          job.Description,
+		PostTime:             job.PostTime.String(),
+		NrOfCandidates:       int32(job.NrCandidates),
+		EmployerRating:       job.ERating,
+		MoneySpent:           float32(job.MoneySpent),
+	}
 }
 
-func (js *JobServer) PostJob(ctx context.Context, job *proto.CreateJob) (*proto.Job, error) {
-	jobData := models.Job{
+func (js *JobServer) GetAllServices(void *pb.Void, server pb.Jobs_GetAllServicesServer) error {
+	errs := make([]string, 0)
+
+	serviceCategories, err := js.JobManager.GetAllServiceCategories()
+	if err != nil {
+		return err
+	}
+
+	for _, sc := range serviceCategories {
+		pbsc := &pb.ServiceCategory{
+			ID:                   &pb.ID{ID: sc.ID},
+			Service:              sc.Service,
+		}
+		if err := server.Send(pbsc); err != nil {
+			errs = append(errs, err.Error())
+		}
+	}
+
+	if len(errs) > 0 {
+		return SendError{Err: strings.Join(errs, "\n")}
+	}
+
+	return nil
+}
+
+func (js *JobServer) GetAllSkillCategories(pbsc *pb.ServiceCategory, server pb.Jobs_GetAllSkillCategoriesServer) error {
+	errs := make([]string, 0)
+
+	sc := &models.ServiceCategory{
+		ID:      pbsc.ID.ID,
+		Service: pbsc.Service,
+	}
+
+	skillCategories, err := js.JobManager.GetSkillCategoriesByServiceCategory(sc)
+	if err != nil {
+		return err
+	}
+
+	for _, skc := range skillCategories {
+		pbskc := &pb.SkillCategory{
+			ID:                   &pb.ID{ID: skc.ID},
+			Category:             skc.Category,
+		}
+		if err := server.Send(pbskc); err != nil {
+			errs = append(errs, err.Error())
+		}
+	}
+
+	if len(errs) > 0 {
+		return SendError{Err: strings.Join(errs, "\n")}
+	}
+
+	return nil
+}
+
+func (js *JobServer) GetAllSkills(pbskc *pb.SkillCategory, server pb.Jobs_GetAllSkillsServer) error {
+	errs := make([]string, 0)
+
+	skc := &models.SkillCategory{
+		ID:       pbskc.ID.ID,
+		Category: pbskc.Category,
+	}
+
+	skills, err := js.JobManager.GetSkillByCategory(skc)
+	if err != nil {
+		return err
+	}
+
+	for _, sk := range skills {
+		pbsc := &pb.Skill{
+			ID:                   &pb.ID{ID: sk.ID},
+			Category:             pbskc,
+			Skill:                sk.Skill,
+		}
+		if err := server.Send(pbsc); err != nil {
+			errs = append(errs, err.Error())
+		}
+	}
+
+	if len(errs) > 0 {
+		return SendError{Err: strings.Join(errs, "\n")}
+	}
+
+	return nil
+}
+
+func (js *JobServer) PostJob(ctx context.Context, job *pb.CreateJob) (*pb.Job, error) {
+	jobData := &models.Job{
 		ID:           "",
 		EUID:         job.GetEUID().GetID(),
 		Title:        job.GetTitle(),
-		Service:      models.Service{
+		Service:      models.ServiceCategory{
 			ID: job.GetService().GetID().GetID(),
 			Service: job.GetService().GetService(),
 		},
@@ -73,35 +179,68 @@ func (js *JobServer) PostJob(ctx context.Context, job *proto.CreateJob) (*proto.
 	return nil, nil
 }
 
-func (js *JobServer) GetJobs(*proto.ID, proto.Jobs_GetJobsServer) error {
+func (js *JobServer) GetJob(ctx context.Context, id *pb.ID) (*pb.Job, error) {
+	jobData, err := js.JobManager.GetJob(id.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	return convertJobToProto(jobData), nil
+}
+
+func (js *JobServer) GetJobs(filter *pb.Filter, server pb.Jobs_GetJobsServer) error {
+	errs := make([]string, 0)
+
+	qfilter := &models.Filter{
+		ID:      filter.ID.ID,
+		Title:   filter.Title,
+		WageMin: filter.WageMin,
+		ERating: filter.EmployerRating,
+	}
+
+	jobsData, err := js.JobManager.GetJobs(qfilter)
+	if err != nil {
+		return err
+	}
+
+	for _, jobData := range jobsData {
+		if err := server.Send(convertJobToProto(jobData)); err != nil {
+			errs = append(errs, err.Error())
+		}
+	}
+
+	if len(errs) > 0 {
+		return SendError{Err: strings.Join(errs, "\n")}
+	}
+
+	return nil
+}
+
+func (js *JobServer) ApplyForJob(context.Context, *pb.JobApplication) (*pb.ErrorCode, error) {
 	panic("implement me")
 }
 
-func (js *JobServer) ApplyForJob(context.Context, *proto.JobApplication) (*proto.ErrorCode, error) {
+func (js *JobServer) GetApplicants(*pb.ID, pb.Jobs_GetApplicantsServer) error {
 	panic("implement me")
 }
 
-func (js *JobServer) GetApplicants(*proto.ID, proto.Jobs_GetApplicantsServer) error {
+func (js *JobServer) SelectForJob(context.Context, *pb.JobSelection) (*pb.ErrorCode, error) {
 	panic("implement me")
 }
 
-func (js *JobServer) SelectForJob(context.Context, *proto.JobSelection) (*proto.ErrorCode, error) {
+func (js *JobServer) GetAcceptedFreelancers(*pb.ID, pb.Jobs_GetAcceptedFreelancersServer) error {
 	panic("implement me")
 }
 
-func (js *JobServer) GetAcceptedFreelancers(*proto.ID, proto.Jobs_GetAcceptedFreelancersServer) error {
+func (js *JobServer) GetAcceptedJobs(*pb.ID, pb.Jobs_GetAcceptedJobsServer) error {
 	panic("implement me")
 }
 
-func (js *JobServer) GetAcceptedJobs(*proto.ID, proto.Jobs_GetAcceptedJobsServer) error {
+func (js *JobServer) GetHistoryJobs(*pb.ID, pb.Jobs_GetHistoryJobsServer) error {
 	panic("implement me")
 }
 
-func (js *JobServer) GetHistoryJobs(*proto.ID, proto.Jobs_GetHistoryJobsServer) error {
-	panic("implement me")
-}
-
-func (js *JobServer) FinishJob(context.Context, *proto.ID) (*proto.ErrorCode, error) {
+func (js *JobServer) FinishJob(context.Context, *pb.ID) (*pb.ErrorCode, error) {
 	panic("implement me")
 }
 
