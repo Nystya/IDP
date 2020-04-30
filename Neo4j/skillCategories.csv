@@ -1,0 +1,64 @@
+id,serviceCategory,skillCategory,LABEL
+1,1,'Accounting',SkillsCategory
+2,1,'Human Resources',SkillsCategory
+3,1,'Financial Planing',SkillsCategory
+4,1,'Management Consulting',SkillsCategory
+5,1,'Other',SkillsCategory
+
+6,2,'A/B Testing',SkillsCategory
+7,2,'Data Mining',SkillsCategory
+8,2,'Machine Learning',SkillsCategory
+9,2,'Data Extraction',SkillsCategory
+10,2,'Data Visualization',SkillsCategory
+11,2,'Other',SkillsCategory
+
+12,3,'Animation',SkillsCategory
+13,3,'Audio Production',SkillsCategory
+14,3,'Photography',SkillsCategory
+15,3,'Art & Illustration',SkillsCategory
+16,3,'Brand Identity & Strategy',SkillsCategory
+17,3,'Graphics & Design',SkillsCategory
+18,3,'Other',SkillsCategory
+
+19,4,'3D Modeling & CAD',SkillsCategory
+20,4,'Interior Design',SkillsCategory
+21,4,'Architecture',SkillsCategory
+22,4,'Electrical Engineering',SkillsCategory
+23,4,'Other',SkillsCategory
+
+24,5,'Database Administration',SkillsCategory
+25,5,'Information Security',SkillsCategory
+26,5,'Network & System Administration',SkillsCategory
+27,5,'Other',SkillsCategory
+
+28,6,'Contract Law',SkillsCategory
+29,6,'Criminal Law',SkillsCategory
+30,6,'Corporate Law',SkillsCategory
+31,6,'Other',SkillsCategory
+
+32,7,'Public Relations',SkillsCategory
+33,7,'SEO',SkillsCategory
+34,7,'Social Media',SkillsCategory
+35,7,'General Marketing',SkillsCategory
+36,7,'Other',SkillsCategory
+
+37,8,'General Translation',SkillsCategory
+38,8,'Legal Translation',SkillsCategory
+39,8,'Technical Translation',SkillsCategory
+40,8,'Medical Translation',SkillsCategory
+41,8,'Other',SkillsCategory
+
+42,9,'Desktop Development',SkillsCategory
+43,9,'Game Development',SkillsCategory
+44,9,'Ecommerce Development',SkillsCategory
+45,9,'Mobile Development',SkillsCategory
+46,9,'Web Development',SkillsCategory
+47,9,'Web & Mobile Design',SkillsCategory
+48,9,'Other',SkillsCategory
+
+49,10,'Academic Writing & Research',SkillsCategory
+50,10,'Copywriting',SkillsCategory
+51,10,'Technical Writing',SkillsCategory
+52,10,'Creative Writing',SkillsCategory
+53,10,'Resumes & Cover Letters',SkillsCategory
+54,10,'Other',SkillsCategory

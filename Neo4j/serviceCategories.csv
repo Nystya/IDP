@@ -1,0 +1,11 @@
+id,category,LABEL
+1,'Accounting & Consulting',ServiceCategories
+2,'Data Science & Analytics',ServiceCategories
+3,'Design & Creative',ServiceCategories
+4,'Engineering & Architecture',ServiceCategories
+5,'IT & Networking',ServiceCategories
+6,'Legal',ServiceCategories
+7,'Sales & Marketing',ServiceCategories
+8,'Translation',ServiceCategories
+9,'Web Mobile & Software Dev',ServiceCategories
+10,'Writing',ServiceCategories
