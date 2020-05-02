@@ -33,8 +33,8 @@ message Skill {
 
 message CreateJob {
     ID EUID = 1;
-    ServiceCategory service = 2;
-    SkillCategory category = 3;
+    repeated ServiceCategory serviceCategories = 2;
+    repeated SkillCategory skillCategories = 3;
     float wage = 4;
     int32 places = 5;
     string title = 6;
@@ -45,8 +45,8 @@ message CreateJob {
 message Job {
     ID ID = 1;
     ID EUID = 2;
-    ServiceCategory service = 3;
-    SkillCategory category = 4;
+    repeated ServiceCategory serviceCategories = 3;
+    repeated SkillCategory skillCategories = 4;
     float wage = 5;
     int32 places = 6;
     string title = 7;
@@ -56,6 +56,7 @@ message Job {
     int32 nrOfCandidates = 11;
     float employerRating = 12;
     float moneySpent = 13;
+    string status = 14;
 }
 
 message Filter {
@@ -94,14 +95,8 @@ message FreelancerProfile {
     float balance = 6;
     string description = 7;
     string photo = 8;
-    Skill mainSkill = 9;
-}
-
-service Profiles {
-    rpc EditEmployerProfile(EmployerProfile) returns (ErrorCode);
-    rpc EditFreelancerProfile(FreelancerProfile) returns (ErrorCode);
-    rpc GetEmployerProfile(ID) returns (EmployerProfile);
-    rpc GetFreelancerProfile(ID) returns (FreelancerProfile);
+    repeated SkillCategory skillCategories = 9;
+    repeated Skill skills = 10;
 }
 
 service Jobs {
@@ -117,6 +112,7 @@ service Jobs {
     rpc SelectForJob(JobSelection) returns (ErrorCode);
     rpc GetAcceptedFreelancers(ID) returns (stream FreelancerProfile);
     rpc GetAcceptedJobs(ID) returns (stream Job);
-    rpc GetHistoryJobs(ID) returns (stream Job);
+    rpc GetFreelancerHistoryJobs(ID) returns (stream Job);
+    rpc GetEmployerHistoryJobs(ID) returns (stream Job);
     rpc FinishJob(ID) returns (ErrorCode);
 }

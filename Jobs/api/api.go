@@ -1,15 +1,17 @@
 package api
 
+//go:generate protoc --plugin=/home/skanda/go/bin/protoc-gen-go --proto_path=../proto/ --go_out=plugins=grpc:../proto/ ../proto/api.proto
+
 import (
 	"context"
 	"google.golang.org/grpc"
 	"idp/Jobs/models"
+	pb "idp/Jobs/proto"
 	"idp/Jobs/usecases"
 	"log"
 	"net"
 	"os"
 	"os/signal"
-	pb "idp/Jobs/proto"
 	"strings"
 	"time"
 )
@@ -39,27 +41,68 @@ func (err SendError) Error() string {
 }
 
 func convertJobToProto(job *models.Job) *pb.Job {
-	return &pb.Job{
+	pbJob := &pb.Job{
 		ID:                   &pb.ID{ID: job.ID},
 		EUID:                 &pb.ID{ID: job.EUID},
-		Service:              &pb.ServiceCategory{
-			ID:                   	&pb.ID{ID: job.Service.ID},
-			Service:      			job.Service.Service,
-		},
-		Category:             &pb.SkillCategory{
-			ID:                   &pb.ID{ID: job.Category.ID},
-			Category:             job.Category.Category,
-		},
+		ServiceCategories:    make([]*pb.ServiceCategory, 0),
+		SkillCategories:	  make([]*pb.SkillCategory, 0),
 		Wage:                 job.Wage,
 		Places:               job.Places,
 		Title:                job.Title,
 		Exp:                  job.Experience,
 		Description:          job.Description,
-		PostTime:             job.PostTime.String(),
+		PostTime:             job.PostTime,
 		NrOfCandidates:       int32(job.NrCandidates),
 		EmployerRating:       job.ERating,
 		MoneySpent:           float32(job.MoneySpent),
 	}
+
+	for _, sc := range job.ServiceCategories {
+		pbJob.ServiceCategories = append(pbJob.ServiceCategories, &pb.ServiceCategory{
+			ID:                   &pb.ID{ID: sc.ID},
+			Service:              sc.Category,
+		})
+	}
+
+	for _, skc := range job.SkillCategories {
+		pbJob.SkillCategories = append(pbJob.SkillCategories, &pb.SkillCategory{
+			ID:                   &pb.ID{ID: skc.ID},
+			Category:             skc.Category,
+		})
+	}
+
+	return pbJob
+}
+
+func convertFreelancerProfileToProto(freelancer *models.Freelancer) *pb.FreelancerProfile {
+	pbFreelancer := &pb.FreelancerProfile{
+		FUID:            &pb.ID{ID: freelancer.ID},
+		Phone:           freelancer.Phone,
+		LastName:        freelancer.LastName,
+		FirstName:       freelancer.FirstName,
+		Rating:          freelancer.Rating,
+		Balance:         freelancer.Balance,
+		Description:     freelancer.Description,
+		Photo:           freelancer.Photo,
+		SkillCategories: make([]*pb.SkillCategory, 0),
+		Skills:          make([]*pb.Skill, 0),
+	}
+
+	for _, skc := range freelancer.SkillCategories {
+		pbFreelancer.SkillCategories = append(pbFreelancer.SkillCategories, &pb.SkillCategory{
+			ID:                   &pb.ID{ID: skc.ID},
+			Category:             skc.Category,
+		})
+	}
+
+	for _, sk := range freelancer.Skills {
+		pbFreelancer.Skills = append(pbFreelancer.Skills, &pb.Skill{
+			ID:                   &pb.ID{ID: sk.ID},
+			Skill: 				  sk.Skill,
+		})
+	}
+
+	return pbFreelancer
 }
 
 func (js *JobServer) GetAllServices(void *pb.Void, server pb.Jobs_GetAllServicesServer) error {
@@ -73,7 +116,7 @@ func (js *JobServer) GetAllServices(void *pb.Void, server pb.Jobs_GetAllServices
 	for _, sc := range serviceCategories {
 		pbsc := &pb.ServiceCategory{
 			ID:                   &pb.ID{ID: sc.ID},
-			Service:              sc.Service,
+			Service:              sc.Category,
 		}
 		if err := server.Send(pbsc); err != nil {
 			errs = append(errs, err.Error())
@@ -91,8 +134,8 @@ func (js *JobServer) GetAllSkillCategories(pbsc *pb.ServiceCategory, server pb.J
 	errs := make([]string, 0)
 
 	sc := &models.ServiceCategory{
-		ID:      pbsc.ID.ID,
-		Service: pbsc.Service,
+		ID:       pbsc.GetID().GetID(),
+		Category: pbsc.GetService(),
 	}
 
 	skillCategories, err := js.JobManager.GetSkillCategoriesByServiceCategory(sc)
@@ -121,8 +164,8 @@ func (js *JobServer) GetAllSkills(pbskc *pb.SkillCategory, server pb.Jobs_GetAll
 	errs := make([]string, 0)
 
 	skc := &models.SkillCategory{
-		ID:       pbskc.ID.ID,
-		Category: pbskc.Category,
+		ID:       pbskc.GetID().GetID(),
+		Category: pbskc.GetCategory(),
 	}
 
 	skills, err := js.JobManager.GetSkillByCategory(skc)
@@ -150,37 +193,44 @@ func (js *JobServer) GetAllSkills(pbskc *pb.SkillCategory, server pb.Jobs_GetAll
 
 func (js *JobServer) PostJob(ctx context.Context, job *pb.CreateJob) (*pb.Job, error) {
 	jobData := &models.Job{
-		ID:           "",
 		EUID:         job.GetEUID().GetID(),
 		Title:        job.GetTitle(),
-		Service:      models.ServiceCategory{
-			ID: job.GetService().GetID().GetID(),
-			Service: job.GetService().GetService(),
-		},
-		Category:     models.SkillCategory{
-			ID: job.GetCategory().GetID().GetID(),
-			Category: job.GetCategory().GetCategory(),
-		},
+		ServiceCategories: nil,
+		SkillCategories: nil,
 		Experience:   job.GetExp(),
 		Wage:         job.GetWage(),
 		Places:       job.GetPlaces(),
 		Description:  job.GetDescription(),
 		Skills:       nil,
-		PostTime:     time.Now(),
-		ERating:      0,
-		NrCandidates: 0,
-		MoneySpent:   0,
+		PostTime:     time.Now().String(),
 	}
 
-	if err := js.JobManager.AddJob(jobData); err != nil {
+	for _, sc := range job.GetServiceCategories() {
+		jobData.ServiceCategories = append(jobData.ServiceCategories, &models.ServiceCategory{
+			ID:       sc.ID.ID,
+			Category: sc.Service,
+		})
+	}
+
+	for _, skc := range job.GetSkillCategories() {
+		jobData.SkillCategories = append(jobData.SkillCategories, &models.SkillCategory{
+			ID: skc.ID.ID,
+			Category: skc.Category,
+		})
+	}
+
+	newJob, err := js.JobManager.AddJob(jobData)
+	if err != nil {
 		return nil, err
 	}
 
-	return nil, nil
+	pbJob := convertJobToProto(newJob)
+
+	return pbJob, nil
 }
 
 func (js *JobServer) GetJob(ctx context.Context, id *pb.ID) (*pb.Job, error) {
-	jobData, err := js.JobManager.GetJob(id.ID)
+	jobData, err := js.JobManager.GetJob(id.GetID())
 	if err != nil {
 		return nil, err
 	}
@@ -192,10 +242,10 @@ func (js *JobServer) GetJobs(filter *pb.Filter, server pb.Jobs_GetJobsServer) er
 	errs := make([]string, 0)
 
 	qfilter := &models.Filter{
-		ID:      filter.ID.ID,
-		Title:   filter.Title,
-		WageMin: filter.WageMin,
-		ERating: filter.EmployerRating,
+		ID:      filter.GetID().GetID(),
+		Title:   filter.GetTitle(),
+		WageMin: filter.GetWageMin(),
+		ERating: filter.GetEmployerRating(),
 	}
 
 	jobsData, err := js.JobManager.GetJobs(qfilter)
@@ -216,32 +266,129 @@ func (js *JobServer) GetJobs(filter *pb.Filter, server pb.Jobs_GetJobsServer) er
 	return nil
 }
 
-func (js *JobServer) ApplyForJob(context.Context, *pb.JobApplication) (*pb.ErrorCode, error) {
-	return nil
-}
+func (js *JobServer) ApplyForJob(ctx context.Context, ja *pb.JobApplication) (*pb.ErrorCode, error) {
+	if err := js.JobManager.ApplyForJob(ja.GetJID().GetID(), ja.GetFUID().GetID()); err != nil {
+		return &pb.ErrorCode{Err: 500, Msg: "Could not create link"}, err
+	}
 
-func (js *JobServer) GetApplicants(*pb.ID, pb.Jobs_GetApplicantsServer) error {
-	return nil
-}
-
-func (js *JobServer) SelectForJob(context.Context, *pb.JobSelection) (*pb.ErrorCode, error) {
 	return nil, nil
 }
 
-func (js *JobServer) GetAcceptedFreelancers(*pb.ID, pb.Jobs_GetAcceptedFreelancersServer) error {
+func (js *JobServer) GetApplicants(jid *pb.ID, server pb.Jobs_GetApplicantsServer) error {
+	errs := make([]string, 0)
+
+	freelancers, err := js.JobManager.GetApplicants(jid.GetID())
+	if err != nil {
+		return nil
+	}
+
+	for _, freelancer := range freelancers {
+		if err = server.Send(convertFreelancerProfileToProto(freelancer)); err != nil {
+			errs = append(errs, err.Error())
+		}
+	}
+
+	if len(errs) > 0 {
+		return SendError{Err: strings.Join(errs, "\n")}
+	}
+
 	return nil
 }
 
-func (js *JobServer) GetAcceptedJobs(*pb.ID, pb.Jobs_GetAcceptedJobsServer) error {
-	return nil
-}
+func (js *JobServer) SelectForJob(ctx context.Context, jobSel *pb.JobSelection) (*pb.ErrorCode, error) {
+	if err := js.JobManager.SelectFreelancerForJob(jobSel.GetJID().GetID(), jobSel.GetFUID().GetID()); err != nil {
+		return nil, err
+	}
 
-func (js *JobServer) GetHistoryJobs(*pb.ID, pb.Jobs_GetHistoryJobsServer) error {
-	return nil
-}
-
-func (js *JobServer) FinishJob(context.Context, *pb.ID) (*pb.ErrorCode, error) {
 	return nil, nil
+}
+
+func (js *JobServer) GetAcceptedFreelancers(jid *pb.ID, server pb.Jobs_GetAcceptedFreelancersServer) error {
+	errs := make([]string, 0)
+
+	freelancers, err := js.JobManager.GetApplicants(jid.GetID())
+	if err != nil {
+		return nil
+	}
+
+	for _, freelancer := range freelancers {
+		if err = server.Send(convertFreelancerProfileToProto(freelancer)); err != nil {
+			errs = append(errs, err.Error())
+		}
+	}
+
+	if len(errs) > 0 {
+		return SendError{Err: strings.Join(errs, "\n")}
+	}
+
+	return nil
+}
+
+func (js *JobServer) GetAcceptedJobs(fid *pb.ID, server pb.Jobs_GetAcceptedJobsServer) error {
+	errs := make([]string , 0)
+
+	jobs, err := js.JobManager.GetAcceptedJobsForFreelancer(fid.GetID())
+	if err != nil {
+		return err
+	}
+
+	for _, job := range jobs {
+		if err = server.Send(convertJobToProto(job)); err != nil {
+			errs = append(errs, err.Error())
+		}
+	}
+
+	if len(errs) > 0 {
+		return SendError{Err: strings.Join(errs, "\n")}
+	}
+
+	return nil
+}
+
+func (js *JobServer) GetFreelancerHistoryJobs(id *pb.ID, server pb.Jobs_GetFreelancerHistoryJobsServer) error {
+	errs := make([]string, 0)
+
+	jobs, err := js.JobManager.GetHistoryJobs(id.GetID(), models.ActorTypeFreelancer)
+	if err != nil {
+		return err
+	}
+
+	for _, job := range jobs {
+		if err = server.Send(convertJobToProto(job)); err != nil {
+			errs = append(errs, err.Error())
+		}
+	}
+
+	if len(errs) > 0 {
+		return SendError{Err: strings.Join(errs, "\n")}
+	}
+
+	return nil
+}
+
+func (js *JobServer) GetEmployerHistoryJobs(id *pb.ID, server pb.Jobs_GetEmployerHistoryJobsServer) error {
+	errs := make([]string, 0)
+
+	jobs, err := js.JobManager.GetHistoryJobs(id.GetID(), models.ActorTypeEmployer)
+	if err != nil {
+		return err
+	}
+
+	for _, job := range jobs {
+		if err = server.Send(convertJobToProto(job)); err != nil {
+			errs = append(errs, err.Error())
+		}
+	}
+
+	if len(errs) > 0 {
+		return SendError{Err: strings.Join(errs, "\n")}
+	}
+
+	return nil
+}
+
+func (js *JobServer) FinishJob(ctx context.Context, jid *pb.ID) (*pb.ErrorCode, error) {
+	return nil, js.JobManager.FinishJob(jid.GetID())
 }
 
 func RunServer(ctx context.Context, conf *ServerConfig) error {

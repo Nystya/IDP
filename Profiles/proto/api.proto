@@ -1,0 +1,79 @@
+syntax = "proto3";
+
+package api;
+
+message Void {
+
+}
+
+message ErrorCode {
+    int32 err = 1;
+    string msg = 2;
+}
+
+message ID {
+    string ID = 1;
+}
+
+message ServiceCategory {
+    ID ID = 1;
+    string service = 2;
+}
+
+message SkillCategory {
+    ID ID = 1;
+    string category = 2;
+}
+
+message Skill {
+    ID ID = 1;
+    SkillCategory category = 2;
+    string skill = 3;
+}
+
+message EmployerProfile {
+    ID EUID = 1;
+    string phone = 2;
+    string lastName = 3;
+    string firstName = 4;
+    float rating = 5;
+    int32 jobsPosted = 6;
+    float moneySpent = 7;
+}
+
+message EditEmployerProfileRequest {
+    ID EUID = 1;
+    string phone = 2;
+    string lastName = 3;
+    string firstName = 4;
+}
+
+message FreelancerProfile {
+    ID FUID = 1;
+    string phone = 2;
+    string lastName = 3;
+    string firstName = 4;
+    float rating = 5;
+    float balance = 6;
+    string description = 7;
+    string photo = 8;
+    repeated SkillCategory skillCategories = 9;
+    repeated Skill skills = 10;
+}
+
+message EditFreelancerProfileRequest {
+    ID FUID = 1;
+    string phone = 2;
+    string lastName = 3;
+    string firstName = 4;
+    string description = 5;
+    repeated SkillCategory skillCategories = 6;
+    repeated Skill skills = 7;
+}
+
+service Profiles {
+    rpc EditEmployerProfile(EditEmployerProfileRequest) returns (ErrorCode);
+    rpc EditFreelancerProfile(EditFreelancerProfileRequest) returns (ErrorCode);
+    rpc GetEmployerProfile(ID) returns (EmployerProfile);
+    rpc GetFreelancerProfile(ID) returns (FreelancerProfile);
+}

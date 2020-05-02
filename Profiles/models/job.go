@@ -9,7 +9,6 @@ const (
 
 type NewJob struct {
 	ID          string  `json:"id"`
-	EUID        string  `json:"euid"`
 	Title       string  `json:"title"`
 	Experience  string  `json:"experience"`
 	Wage        float32 `json:"wage"`
