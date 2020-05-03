@@ -30,6 +30,14 @@ const (
 	finishJob = "MATCH (j:Job {ID: $jid}) SET (j.Status = $history) RETURN 'OK'"
 )
 
+type NoDataFoundError struct {
+	Err string
+}
+
+func (err NoDataFoundError) Error() string {
+	return err.Err
+}
+
 type Database interface {
 	GetAllServiceCategories() ([]*models.ServiceCategory, error)
 	GetSkillCategoriesByServiceCategory(*models.ServiceCategory) ([]*models.SkillCategory, error)
@@ -84,6 +92,10 @@ func (nj *Neo4jDatabase) GetAllServiceCategories() ([]*models.ServiceCategory, e
 			return nil, err
 		}
 
+		if !qResult.Next() {
+			return nil, &NoDataFoundError{Err: "No data found"}
+		}
+
 		return qResult, nil
 	}); if err != nil {
 		return nil, err
@@ -124,6 +136,10 @@ func (nj *Neo4jDatabase) GetSkillCategoriesByServiceCategory(category *models.Se
 			return nil, err
 		}
 
+		if !qResult.Next() {
+			return nil, &NoDataFoundError{Err: "No data found"}
+		}
+
 		return qResult, nil
 	}); if err != nil {
 		return nil, err
@@ -162,6 +178,10 @@ func (nj *Neo4jDatabase) GetSkillsByCategory(category *models.SkillCategory) ([]
 
 		if err != nil {
 			return nil, err
+		}
+
+		if !qResult.Next() {
+			return nil, &NoDataFoundError{Err: "No data found"}
 		}
 
 		return qResult, nil
@@ -270,6 +290,10 @@ func (nj *Neo4jDatabase) GetJobByID(jobID string) (*models.Job, error) {
 			return nil, err
 		}
 
+		if !qResult.Next() {
+			return nil, &NoDataFoundError{Err: "No data found"}
+		}
+
 		return qResult, nil
 	}); if err != nil {
 		return nil, err
@@ -320,6 +344,10 @@ func (nj *Neo4jDatabase) GetJobsWithFilter(title, status string, wageMin, eRatin
 
 		if err != nil {
 			return nil, err
+		}
+
+		if !qResult.Next() {
+			return nil, &NoDataFoundError{Err: "No data found"}
 		}
 
 		return qResult, nil
