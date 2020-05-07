@@ -26,7 +26,7 @@ type JobManager interface {
 
 const (
 	MQTTHost     = "tcp://mqtt:1883"
-	MQTTClient   = "adaptor_client"
+	MQTTClient   = "jobs_manager_client"
 	MQTTUsername = ""
 	MQTTPassword = ""
 	MQTTTopic    = "#"
