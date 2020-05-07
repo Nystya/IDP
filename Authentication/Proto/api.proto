@@ -1,0 +1,144 @@
+syntax = "proto3";
+
+package api;
+
+message Void {
+
+}
+
+message ErrorCode {
+    int32 err = 1;
+    string msg = 2;
+}
+
+message ID {
+    string ID = 1;
+}
+
+message ServiceCategory {
+    ID ID = 1;
+    string service = 2;
+}
+
+message SkillCategory {
+    ID ID = 1;
+    string category = 2;
+}
+
+message Skill {
+    ID ID = 1;
+    SkillCategory category = 2;
+    string skill = 3;
+}
+
+message CreateJob {
+    ID EUID = 1;
+    repeated ServiceCategory serviceCategories = 2;
+    repeated SkillCategory skillCategories = 3;
+    float wage = 4;
+    int32 places = 5;
+    string title = 6;
+    string exp = 7;
+    string description = 8;
+}
+
+message Job {
+    ID ID = 1;
+    ID EUID = 2;
+    repeated ServiceCategory serviceCategories = 3;
+    repeated SkillCategory skillCategories = 4;
+    float wage = 5;
+    int32 places = 6;
+    string title = 7;
+    string exp = 8;
+    string description = 9;
+    string postTime = 10;
+    int32 nrOfCandidates = 11;
+    float employerRating = 12;
+    float moneySpent = 13;
+    string status = 14;
+}
+
+message Filter {
+    ID ID = 1;
+    string title = 2;
+    float wageMin = 3;
+    float employerRating = 4;
+}
+
+message JobApplication {
+    ID JID = 1;
+    ID FUID = 2;
+}
+
+message JobSelection {
+    ID JID = 1;
+    ID FUID = 2;
+}
+
+message EmployerProfile {
+    ID EUID = 1;
+    string phone = 2;
+    string lastName = 3;
+    string firstName = 4;
+    float rating = 5;
+    int32 jobsPosted = 6;
+    float moneySpent = 7;
+}
+
+message FreelancerProfile {
+    ID FUID = 1;
+    string phone = 2;
+    string lastName = 3;
+    string firstName = 4;
+    float rating = 5;
+    float balance = 6;
+    string description = 7;
+    string photo = 8;
+    repeated SkillCategory skillCategories = 9;
+    repeated Skill skills = 10;
+}
+
+service Jobs {
+    rpc GetAllServices(Void) returns (stream ServiceCategory);
+    rpc GetAllSkillCategories(ServiceCategory) returns (stream SkillCategory);
+    rpc GetAllSkills(SkillCategory) returns (stream Skill);
+
+    rpc PostJob(CreateJob) returns (Job);
+    rpc GetJob(ID) returns (Job);
+    rpc GetJobs(Filter) returns (stream Job);
+    rpc ApplyForJob(JobApplication) returns (ErrorCode);
+    rpc GetApplicants(ID) returns (stream FreelancerProfile);
+    rpc SelectForJob(JobSelection) returns (ErrorCode);
+    rpc GetAcceptedFreelancers(ID) returns (stream FreelancerProfile);
+    rpc GetAcceptedJobs(ID) returns (stream Job);
+    rpc GetFreelancerHistoryJobs(ID) returns (stream Job);
+    rpc GetEmployerHistoryJobs(ID) returns (stream Job);
+    rpc FinishJob(ID) returns (ErrorCode);
+}
+
+message EditEmployerProfileRequest {
+    ID EUID = 1;
+    string phone = 2;
+    string lastName = 3;
+    string firstName = 4;
+}
+
+message EditFreelancerProfileRequest {
+    ID FUID = 1;
+    string phone = 2;
+    string lastName = 3;
+    string firstName = 4;
+    string description = 5;
+    repeated SkillCategory skillCategories = 6;
+    repeated Skill skills = 7;
+}
+
+service Profiles {
+    rpc CreateEmployerProfile(EditEmployerProfileRequest) returns (ErrorCode);
+    rpc CreateFreelancerProfile(EditFreelancerProfileRequest) returns (ErrorCode);
+    rpc EditEmployerProfile(EditEmployerProfileRequest) returns (ErrorCode);
+    rpc EditFreelancerProfile(EditFreelancerProfileRequest) returns (ErrorCode);
+    rpc GetEmployerProfile(ID) returns (EmployerProfile);
+    rpc GetFreelancerProfile(ID) returns (FreelancerProfile);
+}

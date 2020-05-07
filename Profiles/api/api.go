@@ -83,6 +83,39 @@ func NewProfileServer(conf *ServerConfig) *ProfileServer {
 	}
 }
 
+func (p ProfileServer) CreateEmployerProfile(ctx context.Context, request *pb.EditEmployerProfileRequest) (*pb.ErrorCode, error) {
+	editProfileRequest := &models.EditEmployerRequest{
+		ID:        request.GetEUID().GetID(),
+		Phone:     request.GetPhone(),
+		LastName:  request.GetLastName(),
+		FirstName: request.GetFirstName(),
+	}
+
+	if err := p.ProfileManager.CreateEmployerProfile(editProfileRequest); err != nil {
+		return &pb.ErrorCode{Err: 500, Msg:""}, err
+	}
+
+	return &pb.ErrorCode{Err: 200, Msg:""}, nil
+}
+
+func (p ProfileServer) CreateFreelancerProfile(ctx context.Context, request *pb.EditFreelancerProfileRequest) (*pb.ErrorCode, error) {
+	editProfileRequest := &models.EditFreelancerRequest{
+		ID:              request.GetFUID().GetID(),
+		Phone:           request.GetPhone(),
+		LastName:        request.GetLastName(),
+		FirstName:       request.GetFirstName(),
+		Description:     request.GetDescription(),
+		Skills:          make([]*models.Skill, 0),
+		SkillCategories: make([]*models.SkillCategory, 0),
+	}
+
+	if err := p.ProfileManager.CreateFreelancerProfile(editProfileRequest); err != nil {
+		return &pb.ErrorCode{Err: 500, Msg:""}, err
+	}
+
+	return &pb.ErrorCode{Err: 200, Msg:""}, nil
+}
+
 func (p ProfileServer) EditEmployerProfile(ctx context.Context, request *pb.EditEmployerProfileRequest) (*pb.ErrorCode, error) {
 	editProfileRequest := &models.EditEmployerRequest{
 		ID:        request.GetEUID().GetID(),
@@ -92,10 +125,10 @@ func (p ProfileServer) EditEmployerProfile(ctx context.Context, request *pb.Edit
 	}
 
 	if err := p.ProfileManager.EditEmployerProfile(editProfileRequest); err != nil {
-		return nil, err
+		return &pb.ErrorCode{Err: 500, Msg:""}, err
 	}
 
-	return nil, nil
+	return &pb.ErrorCode{Err: 200, Msg:""}, nil
 }
 
 func (p ProfileServer) EditFreelancerProfile(ctx context.Context, request *pb.EditFreelancerProfileRequest) (*pb.ErrorCode, error) {
@@ -109,14 +142,35 @@ func (p ProfileServer) EditFreelancerProfile(ctx context.Context, request *pb.Ed
 		SkillCategories: make([]*models.SkillCategory, 0),
 	}
 
-	if err := p.ProfileManager.EditFreelancerProfile(editProfileRequest); err != nil {
-		return nil, err
+	for _, pbskc := range request.GetSkillCategories() {
+		skc := &models.SkillCategory{
+			ID:       pbskc.GetID().GetID(),
+			Category: pbskc.GetCategory(),
+		}
+		editProfileRequest.SkillCategories = append(editProfileRequest.SkillCategories, skc)
 	}
 
-	return nil, nil
+	for _, pbsk := range request.GetSkills() {
+		sk := &models.Skill{
+			ID:       pbsk.GetID().GetID(),
+			SCID:     models.SkillCategory{
+				ID:       pbsk.GetCategory().GetID().GetID(),
+				Category: pbsk.GetCategory().GetCategory(),
+			},
+			Skill: 	  pbsk.GetSkill(),
+		}
+		editProfileRequest.Skills = append(editProfileRequest.Skills, sk)
+	}
+	
+	if err := p.ProfileManager.EditFreelancerProfile(editProfileRequest); err != nil {
+		return &pb.ErrorCode{Err: 500, Msg:""}, err
+	}
+
+	return &pb.ErrorCode{Err: 200, Msg:""}, nil
 }
 
 func (p ProfileServer) GetEmployerProfile(ctx context.Context, id *pb.ID) (*pb.EmployerProfile, error) {
+    log.Println(id.GetID())
 	employer, err := p.ProfileManager.GetEmployerProfile(id.GetID())
 	if err != nil {
 		return nil, err

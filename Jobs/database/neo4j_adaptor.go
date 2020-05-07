@@ -18,16 +18,51 @@ const (
 	createJobSKCRel = "MATCH (j:Job), (skc:SkillCategory) WHERE (j.ID = $JID) AND (skc.id in $SKCIDS) MERGE (j)-[r:HasSkillCategory]->(skc) RETURN count(*)"
 	assignJobToEmployer = "MATCH (j: Job {ID: $JID}), (e: Employer {ID: $euid}) MERGE (j)<-[r:Posted]-(e) RETURN 'OK'"
 
-	getJobByIDQuery = "match (j:Job {ID: $ID}), (j)-[]->(sc:ServiceCategory), (j)-[]->(skc:SkillCategory) return properties(j), collect(distinct properties(sc)), collect(distinct properties(skc))"
-	getJobsWithFilter = "MATCH(j: Job), (j)-[]->(sc:ServiceCategory), (j)-[]->(skc:SkillCategory) WHERE(j.Status = $status AND j.Title contains $title AND j.Wage >= $minWage) return properties(j), collect(distinct properties(sc)), collect(distinct properties(skc))"
+	getJobByIDQuery = "match (j:Job {ID: $ID}), (j)-[]->(sc:ServiceCategory), (j)-[]->(skc:SkillCategory), " +
+		"(e:Employer)-[p:Posted]->(j)" +
+		"optional match (j)-[]->(sk:Skill) optional match (e)-[p1:Posted]->(j1: Job {Status: $history}) " +
+		"with j, sc, skc, e, sk, sum(j1.Wage) as money_spent " +
+		"optional match (f:Freelancer)-[a:AppliedTo]->(j) " +
+		"return properties(j), collect(distinct properties(sc)), collect(distinct properties(skc))," +
+		"collect(distinct properties(sk)), toFloat(money_spent), toFloat(e.Rating), count(a)"
+
+	getJobsWithFilter = "MATCH (j: Job {Status: $status}), (j)-[]->(sc:ServiceCategory), (j)-[]->(skc:SkillCategory), " +
+		"(e:Employer)-[p:Posted]->(j) " +
+		"WHERE(j.Title contains $title AND j.Wage >= $minWage AND e.Rating >= $erating) " +
+		"optional match (j)-[]->(sk:Skill) optional match (e)-[p1:Posted]->(j1: Job {Status: $history}) " +
+		"with j, sc, skc, e, sk, sum(j1.Wage) as money_spent " +
+		"optional match (f:Freelancer)-[a:AppliedTo]->(j) " +
+		"return properties(j), collect(distinct properties(sc)), collect(distinct properties(skc)), " +
+		"collect(distinct properties(sk)), toFloat(money_spent), toFloat(e.Rating), count(a)"
+
 	createJobApplication = "MATCH (j:Job {ID: $jid}), (f:Freelancer {ID: $fid}) MERGE (j)<-[r:AppliedTo]-(f) RETURN 'OK'"
-	getJobApplicants = "MATCH (j:Job {ID: $jid})<-[r:AppliedTo]-(f:Freelancer), (f)-[]->(skc:SkillCategory), (f)-[]->(sk:Skill) RETURN properties(f), collect(distinct properties(skc)), collect(distinct properties(sk))"
-	selectFreelancerForJob = "MATCH (j:Job {ID: $jid})<-[a:AppliedTo]-(f:Freelancer {ID: $fid}) MERGE (j)<-[r:IsEmployedTo]-(f) DELETE a"
-	getAcceptedFreelancersForJob = "MATCH (j:Job {ID: $jid})<-[r:IsEmployedTo]-(f:Freelancer), (f)-[]->(skc:SkillCategory), (f)-[]->(sk:Skill) RETURN properties(f), collect(distinct properties(skc)), collect(distinct properties(sk))"
-	getAcceptedJobsForFreelancer = "MATCH (j:Job)<-[r:IsEmployedTo]-(f:Freelancer {ID: $fid}), (j)-[]->(sc:ServiceCategory), (j)-[]->(skc:SkillCategory) RETURN properties(j), collect(distinct properties(sc)), collect(distinct properties(skc))"
-	getEmployerHistoryJobs = "MATCH (j:Job {Status: $history})<-[r:Posted]-(e:Employer {ID: $euid}), (j)-[]->(sc:ServiceCategory), (j)-[]->(skc:SkillCategory) return properties(j), collect(distinct properties(sc)), collect(distinct properties(skc))"
-	getFreelancerHistoryJobs = "MATCH (j:Job {Status: $history})<-[r:IsEmployedTo]-(e:Freelancer {ID: $fuid}), (j)-[]->(sc:ServiceCategory), (j)-[]->(skc:SkillCategory) return properties(j), collect(distinct properties(sc)), collect(distinct properties(skc))"
-	finishJob = "MATCH (j:Job {ID: $jid}) SET (j.Status = $history) RETURN 'OK'"
+	getJobApplicants = "MATCH (j:Job {ID: $jid})<-[r:AppliedTo]-(f:Freelancer) optional match (f)-[]->(skc:SkillCategory) optional match (f)-[]->(sk:Skill) RETURN properties(f), collect(distinct properties(skc)), collect(distinct properties(sk))"
+	selectFreelancerForJob = "MATCH (j:Job {ID: $jid})<-[a:AppliedTo]-(f:Freelancer {ID: $fid}) MERGE (j)<-[r:IsEmployedTo]-(f) DELETE a RETURN 'OK'"
+	getAcceptedFreelancersForJob = "MATCH (j:Job {ID: $jid})<-[r:IsEmployedTo]-(f:Freelancer) optional match (f)-[]->(skc:SkillCategory) optional match (f)-[]->(sk:Skill) RETURN properties(f), collect(distinct properties(skc)), collect(distinct properties(sk))"
+	getAcceptedJobsForFreelancer = "match (j:Job)<-[r:IsEmployedTo]-(f1:Freelancer {ID: $fid}), " +
+	    "(j)-[]->(sc:ServiceCategory), (j)-[]->(skc:SkillCategory)," +
+		"(e:Employer)-[p:Posted]->(j)" +
+		"optional match (j)-[]->(sk:Skill) optional match (e)-[p1:Posted]->(j1: Job {Status: $history}) " +
+		"with j, sc, skc, e, sk, sum(j1.Wage) as money_spent " +
+		"optional match (f:Freelancer)-[a:AppliedTo]->(j) " +
+		"return properties(j), collect(distinct properties(sc)), collect(distinct properties(skc))," +
+		"collect(distinct properties(sk)), toFloat(money_spent), toFloat(e.Rating), count(a)"
+	getEmployerHistoryJobs = "MATCH (j:Job {Status: $history})<-[r:Posted]-(e:Employer {ID: $euid}), " +
+	    "(j)-[]->(sc:ServiceCategory), (j)-[]->(skc:SkillCategory) " +
+		"optional match (j)-[]->(sk:Skill) " +
+		"with j, sc, skc, e, sk, sum(j.Wage) as money_spent " +
+		"optional match (f:Freelancer)-[a:AppliedTo]->(j) " +
+		"return properties(j), collect(distinct properties(sc)), collect(distinct properties(skc))," +
+		"collect(distinct properties(sk)), toFloat(money_spent), toFloat(e.Rating), count(a)"
+	getFreelancerHistoryJobs = "MATCH (j:Job {Status: $history})<-[r:IsEmployedTo]-(f:Freelancer {ID: $fuid}), " +
+	    "(j)-[]->(sc:ServiceCategory), (j)-[]->(skc:SkillCategory), " +
+		"(e:Employer)-[p:Posted]->(j)" +
+		"optional match (j)-[]->(sk:Skill) optional match (e)-[p1:Posted]->(j1: Job {Status: $history}) " +
+		"with j, sc, skc, e, sk, sum(j1.Wage) as money_spent " +
+		"optional match (f1:Freelancer)-[a:AppliedTo]->(j) " +
+		"return properties(j), collect(distinct properties(sc)), collect(distinct properties(skc))," +
+		"collect(distinct properties(sk)), toFloat(money_spent), toFloat(e.Rating), count(a)"
+	finishJob = "MATCH (j:Job {ID: $jid}) SET j.Status = $history RETURN 'OK'"
 )
 
 type NoDataFoundError struct {
@@ -77,133 +112,102 @@ func NewNeo4jDatabase(uri, username, password string) *Neo4jDatabase {
 }
 
 func (nj *Neo4jDatabase) GetAllServiceCategories() ([]*models.ServiceCategory, error) {
-	serviceCategories := make([]*models.ServiceCategory, 0)
-
 	session, err := nj.Driver.Session(neo4j.AccessModeRead)
 	if err != nil {
 		return nil, err
 	}
 	defer session.Close()
 
-	qResult, err := session.ReadTransaction(func(tx neo4j.Transaction) (i interface{}, err error) {
+	serviceCategories, err := session.ReadTransaction(func(tx neo4j.Transaction) (i interface{}, err error) {
 		qResult, err := tx.Run(getAllServiceCategories, map[string]interface{} {})
-
 		if err != nil {
 			return nil, err
 		}
 
-		if !qResult.Next() {
-			return nil, &NoDataFoundError{Err: "No data found"}
+		serviceCategories := make([]*models.ServiceCategory, 0)
+		for qResult.Next() {
+			serviceCategoryData := &models.ServiceCategory{}
+
+			if err = mapstructure.Decode(qResult.Record().GetByIndex(0), serviceCategoryData); err != nil {
+				return nil, err
+			}
+
+			serviceCategories = append(serviceCategories, serviceCategoryData)
 		}
 
-		return qResult, nil
+		return serviceCategories, nil
 	}); if err != nil {
 		return nil, err
 	}
 
-	qServiceCategoriesResult := qResult.(neo4j.Result)
-
-	var serviceCategoryData *models.ServiceCategory
-
-	for qServiceCategoriesResult.Next() {
-		serviceCategoryData = &models.ServiceCategory{}
-
-		if err = mapstructure.Decode(qServiceCategoriesResult.Record().GetByIndex(0), serviceCategoryData); err != nil {
-			return nil, err
-		}
-
-		serviceCategories = append(serviceCategories, serviceCategoryData)
-	}
-
-	return serviceCategories, nil
+	return serviceCategories.([]*models.ServiceCategory), nil
 }
 
 func (nj *Neo4jDatabase) GetSkillCategoriesByServiceCategory(category *models.ServiceCategory) ([]*models.SkillCategory, error) {
-	skillCategories := make([]*models.SkillCategory, 0)
-
 	session, err := nj.Driver.Session(neo4j.AccessModeRead)
 	if err != nil {
 		return nil, err
 	}
 	defer session.Close()
 
-	qResult, err := session.ReadTransaction(func(tx neo4j.Transaction) (i interface{}, err error) {
+	skillCategories, err := session.ReadTransaction(func(tx neo4j.Transaction) (i interface{}, err error) {
 		qResult, err := tx.Run(getAllSkillCategories, map[string]interface{} {
 			"ID": category.ID,
-		})
-
-		if err != nil {
+		}); if err != nil {
 			return nil, err
 		}
 
-		if !qResult.Next() {
-			return nil, &NoDataFoundError{Err: "No data found"}
+		skillCategories := make([]*models.SkillCategory, 0)
+
+		for qResult.Next() {
+			skillCategoryData := &models.SkillCategory{}
+
+			if err = mapstructure.Decode(qResult.Record().GetByIndex(0), skillCategoryData); err != nil {
+				return nil, err
+			}
+
+			skillCategories = append(skillCategories, skillCategoryData)
 		}
 
-		return qResult, nil
+		return skillCategories, nil
 	}); if err != nil {
 		return nil, err
 	}
 
-	qSkillCategoriesResult := qResult.(neo4j.Result)
-
-	var skillCategoryData *models.SkillCategory
-
-	for qSkillCategoriesResult.Next() {
-		skillCategoryData = &models.SkillCategory{}
-
-		if err = mapstructure.Decode(qSkillCategoriesResult.Record().GetByIndex(0), skillCategoryData); err != nil {
-			return nil, err
-		}
-
-		skillCategories = append(skillCategories, skillCategoryData)
-	}
-
-	return skillCategories, nil
+	return skillCategories.([]*models.SkillCategory), nil
 }
 
 func (nj *Neo4jDatabase) GetSkillsByCategory(category *models.SkillCategory) ([]*models.Skill, error) {
-	skills := make([]*models.Skill, 0)
-
 	session, err := nj.Driver.Session(neo4j.AccessModeRead)
 	if err != nil {
 		return nil, err
 	}
 	defer session.Close()
 
-	qResult, err := session.ReadTransaction(func(tx neo4j.Transaction) (i interface{}, err error) {
+	skills, err := session.ReadTransaction(func(tx neo4j.Transaction) (i interface{}, err error) {
 		qResult, err := tx.Run(getSkillsByCategory, map[string]interface{} {
 			"ID": category.ID,
-		})
-
-		if err != nil {
+		}); if err != nil {
 			return nil, err
 		}
 
-		if !qResult.Next() {
-			return nil, &NoDataFoundError{Err: "No data found"}
+		skills := make([]*models.Skill, 0)
+		for qResult.Next() {
+			skillData := &models.Skill{}
+
+			if err = mapstructure.Decode(qResult.Record().GetByIndex(0), skillData); err != nil {
+				return nil, err
+			}
+
+			skills = append(skills, skillData)
 		}
 
-		return qResult, nil
+		return skills, nil
 	}); if err != nil {
 		return nil, err
 	}
 
-	qSkillsResult := qResult.(neo4j.Result)
-
-	var skillData *models.Skill
-
-	for qSkillsResult.Next() {
-		skillData = &models.Skill{}
-
-		if err = mapstructure.Decode(qSkillsResult.Record().GetByIndex(0), skillData); err != nil {
-			return nil, err
-		}
-
-		skills = append(skills, skillData)
-	}
-
-	return skills, nil
+	return skills.([]*models.Skill), nil
 }
 
 func (nj *Neo4jDatabase) CreateJob(job *models.NewJob, scs []*models.ServiceCategory, skcs []*models.SkillCategory) error {
@@ -220,6 +224,8 @@ func (nj *Neo4jDatabase) CreateJob(job *models.NewJob, scs []*models.ServiceCate
 		log.Println("Could not decode job")
 		return err
 	}
+
+	newJobDetails["Status"] = models.JobStatusOpen
 
 	_, err = session.WriteTransaction(func(tx neo4j.Transaction) (i interface{}, err error) {
 		_, err = tx.Run(createJobNodeQuery, map[string]interface{}{
@@ -281,50 +287,53 @@ func (nj *Neo4jDatabase) GetJobByID(jobID string) (*models.Job, error) {
 	}
 	defer session.Close()
 
-	qResult, err := session.ReadTransaction(func(tx neo4j.Transaction) (i interface{}, err error) {
+	jobData, err := session.ReadTransaction(func(tx neo4j.Transaction) (i interface{}, err error) {
 		qResult, err := tx.Run(getJobByIDQuery, map[string]interface{}{
 			"ID": jobID,
-		})
-
-		if err != nil {
+			"history": models.JobStatusHistory,
+		}); if err != nil {
 			return nil, err
 		}
 
-		if !qResult.Next() {
-			return nil, &NoDataFoundError{Err: "No data found"}
+		var jobData *models.Job
+		scDatas := make([]*models.ServiceCategory, 0)
+		skcDatas := make([]*models.SkillCategory, 0)
+		skDatas := make([]*models.Skill, 0)
+
+		for qResult.Next() {
+			jobData = &models.Job{}
+
+			if err = mapstructure.Decode(qResult.Record().GetByIndex(0), jobData); err != nil {
+				return nil, err
+			}
+
+			if err = mapstructure.Decode(qResult.Record().GetByIndex(1), &scDatas); err != nil {
+				return nil, err
+			}
+
+			if err = mapstructure.Decode(qResult.Record().GetByIndex(2), &skcDatas); err != nil {
+				return nil, err
+			}
+			if err = mapstructure.Decode(qResult.Record().GetByIndex(3), &skDatas); err != nil {
+				return nil, err
+			}
+
+			jobData.MoneySpent = qResult.Record().GetByIndex(4).(float64)
+			jobData.ERating = float32(qResult.Record().GetByIndex(5).(float64))
+			jobData.NrCandidates = int(qResult.Record().GetByIndex(6).(int64))
+
+			jobData.ServiceCategories = scDatas
+			jobData.SkillCategories = skcDatas
 		}
 
-		return qResult, nil
+		return jobData, nil
 	}); if err != nil {
 		return nil, err
+	}; if jobData == nil {
+		return nil, NoDataFoundError{Err: "Job not found."}
 	}
 
-	qJobResult := qResult.(neo4j.Result)
-
-	var jobData *models.Job
-	scDatas := make([]*models.ServiceCategory, 0)
-	skcDatas := make([]*models.SkillCategory, 0)
-
-	for qJobResult.Next() {
-		jobData = &models.Job{}
-
-		if err = mapstructure.Decode(qJobResult.Record().GetByIndex(0), jobData); err != nil {
-			return nil, err
-		}
-
-		if err = mapstructure.Decode(qJobResult.Record().GetByIndex(1), &scDatas); err != nil {
-			return nil, err
-		}
-
-		if err = mapstructure.Decode(qJobResult.Record().GetByIndex(2), &skcDatas); err != nil {
-			return nil, err
-		}
-
-		jobData.ServiceCategories = scDatas
-		jobData.SkillCategories = skcDatas
-	}
-
-	return jobData, nil
+	return jobData.(*models.Job), nil
 }
 
 func (nj *Neo4jDatabase) GetJobsWithFilter(title, status string, wageMin, eRatingMin float32) ([]*models.Job, error) {
@@ -337,52 +346,54 @@ func (nj *Neo4jDatabase) GetJobsWithFilter(title, status string, wageMin, eRatin
 	qFilterArg := make(map[string]interface{})
 	qFilterArg["title"] = title
 	qFilterArg["minWage"] = wageMin
-	qFilterArg["status"] = status
+	qFilterArg["erating"] = eRatingMin
+	qFilterArg["history"] = models.JobStatusHistory
+	qFilterArg["status"] = models.JobStatusOpen
 
-	qResult, err := session.ReadTransaction(func(tx neo4j.Transaction) (i interface{}, err error) {
+	jobsData, err := session.ReadTransaction(func(tx neo4j.Transaction) (i interface{}, err error) {
 		qResult, err := tx.Run(getJobsWithFilter, qFilterArg)
-
 		if err != nil {
 			return nil, err
 		}
 
-		if !qResult.Next() {
-			return nil, &NoDataFoundError{Err: "No data found"}
+		jobsData := make([]*models.Job, 0)
+
+		for qResult.Next() {
+			jobData := &models.Job{}
+			scDatas := make([]*models.ServiceCategory, 0)
+			skcDatas := make([]*models.SkillCategory, 0)
+			skDatas := make([]*models.Skill, 0)
+
+			if err = mapstructure.Decode(qResult.Record().GetByIndex(0), jobData); err != nil {
+				return nil, err
+			}
+
+			if err = mapstructure.Decode(qResult.Record().GetByIndex(1), &scDatas); err != nil {
+				return nil, err
+			}
+
+			if err = mapstructure.Decode(qResult.Record().GetByIndex(2), &skcDatas); err != nil {
+				return nil, err
+			}
+			if err = mapstructure.Decode(qResult.Record().GetByIndex(3), &skDatas); err != nil {
+				return nil, err
+			}
+			jobData.MoneySpent = qResult.Record().GetByIndex(4).(float64)
+			jobData.ERating = float32(qResult.Record().GetByIndex(5).(float64))
+			jobData.NrCandidates = int(qResult.Record().GetByIndex(6).(int64))
+
+			jobData.ServiceCategories = scDatas
+			jobData.SkillCategories = skcDatas
+
+			jobsData = append(jobsData, jobData)
 		}
 
-		return qResult, nil
+		return jobsData, nil
 	}); if err != nil {
 		return nil, err
 	}
-
-	qJobsResults := qResult.(neo4j.Result)
-
-	jobsData := make([]*models.Job, 0)
-
-	for qJobsResults.Next() {
-		jobData := &models.Job{}
-		scDatas := make([]*models.ServiceCategory, 0)
-		skcDatas := make([]*models.SkillCategory, 0)
-
-		if err = mapstructure.Decode(qJobsResults.Record().GetByIndex(0), jobData); err != nil {
-			return nil, err
-		}
-
-		if err = mapstructure.Decode(qJobsResults.Record().GetByIndex(1), &scDatas); err != nil {
-			return nil, err
-		}
-
-		if err = mapstructure.Decode(qJobsResults.Record().GetByIndex(2), &skcDatas); err != nil {
-			return nil, err
-		}
-
-		jobData.ServiceCategories = scDatas
-		jobData.SkillCategories = skcDatas
-
-		jobsData = append(jobsData, jobData)
-	}
 	
-	return jobsData, nil
+	return jobsData.([]*models.Job), nil
 }
 
 func (nj *Neo4jDatabase) CreateJobApplication(jid, fid string) error {
@@ -396,11 +407,12 @@ func (nj *Neo4jDatabase) CreateJobApplication(jid, fid string) error {
 		qResult, err := tx.Run(createJobApplication, map[string]interface{}{
 			"jid": jid,
 			"fid": fid,
-		})
-
-		if err != nil || !qResult.Next() {
+		}); if err != nil {
 			tx.Rollback()
 			return nil, err
+		}; if !qResult.Next() {
+			tx.Rollback()
+			return nil, NoDataFoundError{Err: "Job or freelancer not found"}
 		}
 
 		return qResult, nil
@@ -418,44 +430,44 @@ func (nj *Neo4jDatabase) GetJobApplicants(jid string) ([]*models.Freelancer, err
 	}
 	defer session.Close()
 
-	qResult, err := session.ReadTransaction(func(tx neo4j.Transaction) (i interface{}, err error) {
+	freelancersData, err := session.ReadTransaction(func(tx neo4j.Transaction) (i interface{}, err error) {
 		qResult, err := tx.Run(getJobApplicants, map[string]interface{}{
 			"jid": jid,
-		})
+		}); if err != nil {
+			return nil, err
+		}
 
-		return qResult, nil
+		freelancersData := make([]*models.Freelancer, 0)
+		for qResult.Next() {
+			freelancerData := &models.Freelancer{}
+			skcDatas := make([]*models.SkillCategory, 0)
+			skDatas := make([]*models.Skill, 0)
+
+
+			if err = mapstructure.Decode(qResult.Record().GetByIndex(0), freelancerData); err != nil {
+				return nil, err
+			}
+
+			if err = mapstructure.Decode(qResult.Record().GetByIndex(1), &skcDatas); err != nil {
+				return nil, err
+			}
+
+			if err = mapstructure.Decode(qResult.Record().GetByIndex(2), &skDatas); err != nil {
+				return nil, err
+			}
+
+			freelancerData.SkillCategories = skcDatas
+			freelancerData.Skills = skDatas
+
+			freelancersData = append(freelancersData, freelancerData)
+		}
+
+		return freelancersData, nil
 	}); if err != nil {
 		return nil, err
 	}
 
-	qResults := qResult.(neo4j.Result)
-
-	freelancersData := make([]*models.Freelancer, 0)
-	for qResults.Next() {
-		freelancerData := &models.Freelancer{}
-		skcDatas := make([]*models.SkillCategory, 0)
-		skDatas := make([]*models.Skill, 0)
-
-
-		if err = mapstructure.Decode(qResults.Record().GetByIndex(0), freelancerData); err != nil {
-			return nil, err
-		}
-
-		if err = mapstructure.Decode(qResults.Record().GetByIndex(1), skcDatas); err != nil {
-			return nil, err
-		}
-
-		if err = mapstructure.Decode(qResults.Record().GetByIndex(2), skDatas); err != nil {
-			return nil, err
-		}
-
-		freelancerData.SkillCategories = skcDatas
-		freelancerData.Skills = skDatas
-
-		freelancersData = append(freelancersData, freelancerData)
-	}
-
-	return freelancersData, nil
+	return freelancersData.([]*models.Freelancer), nil
 }
 
 func (nj *Neo4jDatabase) SelectFreelancerForJob(jid, fid string) error {
@@ -469,11 +481,12 @@ func (nj *Neo4jDatabase) SelectFreelancerForJob(jid, fid string) error {
 		qResult, err := tx.Run(selectFreelancerForJob, map[string]interface{}{
 			"jid": jid,
 			"fid": fid,
-		})
-
-		if err != nil || !qResult.Next() {
+		}); if err != nil {
 			tx.Rollback()
 			return nil, err
+		}; if !qResult.Next() {
+			tx.Rollback()
+			return nil, NoDataFoundError{Err: "Job or freelancer not found"}
 		}
 
 		return qResult, nil
@@ -491,44 +504,44 @@ func (nj *Neo4jDatabase) GetAcceptedFreelancers(jid string) ([]*models.Freelance
 	}
 	defer session.Close()
 
-	qResult, err := session.ReadTransaction(func(tx neo4j.Transaction) (i interface{}, err error) {
+	freelancersData, err := session.ReadTransaction(func(tx neo4j.Transaction) (i interface{}, err error) {
 		qResult, err := tx.Run(getAcceptedFreelancersForJob, map[string]interface{}{
 			"jid": jid,
-		})
+		}); if err != nil {
+			return nil, err
+		}
 
-		return qResult, nil
+		freelancersData := make([]*models.Freelancer, 0)
+		for qResult.Next() {
+			freelancerData := &models.Freelancer{}
+			skcDatas := make([]*models.SkillCategory, 0)
+			skDatas := make([]*models.Skill, 0)
+
+
+			if err = mapstructure.Decode(qResult.Record().GetByIndex(0), freelancerData); err != nil {
+				return nil, err
+			}
+
+			if err = mapstructure.Decode(qResult.Record().GetByIndex(1), &skcDatas); err != nil {
+				return nil, err
+			}
+
+			if err = mapstructure.Decode(qResult.Record().GetByIndex(2), &skDatas); err != nil {
+				return nil, err
+			}
+
+			freelancerData.SkillCategories = skcDatas
+			freelancerData.Skills = skDatas
+
+			freelancersData = append(freelancersData, freelancerData)
+		}
+
+		return freelancersData, nil
 	}); if err != nil {
 		return nil, err
 	}
 
-	qResults := qResult.(neo4j.Result)
-
-	freelancersData := make([]*models.Freelancer, 0)
-	for qResults.Next() {
-		freelancerData := &models.Freelancer{}
-		skcDatas := make([]*models.SkillCategory, 0)
-		skDatas := make([]*models.Skill, 0)
-
-
-		if err = mapstructure.Decode(qResults.Record().GetByIndex(0), freelancerData); err != nil {
-			return nil, err
-		}
-
-		if err = mapstructure.Decode(qResults.Record().GetByIndex(1), skcDatas); err != nil {
-			return nil, err
-		}
-
-		if err = mapstructure.Decode(qResults.Record().GetByIndex(2), skDatas); err != nil {
-			return nil, err
-		}
-
-		freelancerData.SkillCategories = skcDatas
-		freelancerData.Skills = skDatas
-
-		freelancersData = append(freelancersData, freelancerData)
-	}
-
-	return freelancersData, nil
+	return freelancersData.([]*models.Freelancer), nil
 }
 
 func (nj *Neo4jDatabase) GetAcceptedJobsForFreelancer(fid string) ([]*models.Job, error) {
@@ -538,48 +551,54 @@ func (nj *Neo4jDatabase) GetAcceptedJobsForFreelancer(fid string) ([]*models.Job
 	}
 	defer session.Close()
 
-	qResult, err := session.ReadTransaction(func(tx neo4j.Transaction) (i interface{}, err error) {
+	jobDatas, err := session.ReadTransaction(func(tx neo4j.Transaction) (i interface{}, err error) {
 		qResult, err := tx.Run(getAcceptedJobsForFreelancer, map[string]interface{}{
 			"fid": fid,
-		})
-
-		if err != nil {
+			"history": models.JobStatusHistory,
+		}); if err != nil {
 			return nil, err
 		}
 
-		return qResult, nil
+		jobDatas := make([]*models.Job, 0)
+
+		for qResult.Next() {
+			jobData := &models.Job{}
+			scDatas := make([]*models.ServiceCategory, 0)
+			skcDatas := make([]*models.SkillCategory, 0)
+			skDatas := make([]*models.Skill, 0)
+
+			if err = mapstructure.Decode(qResult.Record().GetByIndex(0), jobData); err != nil {
+				return nil, err
+			}
+
+			if err = mapstructure.Decode(qResult.Record().GetByIndex(1), &scDatas); err != nil {
+				return nil, err
+			}
+
+			if err = mapstructure.Decode(qResult.Record().GetByIndex(2), &skcDatas); err != nil {
+				return nil, err
+			}
+			if err = mapstructure.Decode(qResult.Record().GetByIndex(3), &skDatas); err != nil {
+				return nil, err
+			}
+			jobData.MoneySpent = qResult.Record().GetByIndex(4).(float64)
+			jobData.ERating = float32(qResult.Record().GetByIndex(5).(float64))
+			jobData.NrCandidates = int(qResult.Record().GetByIndex(6).(int64))
+
+			jobData.ServiceCategories = scDatas
+			jobData.SkillCategories = skcDatas
+
+			jobDatas = append(jobDatas, jobData)
+		}
+
+		log.Println(jobDatas)
+
+		return jobDatas, nil
 	}); if err != nil {
 		return nil, err
 	}
 
-	qJobResult := qResult.(neo4j.Result)
-
-	jobDatas := make([]*models.Job, 0)
-
-	for qJobResult.Next() {
-		jobData := &models.Job{}
-		scDatas := make([]*models.ServiceCategory, 0)
-		skcDatas := make([]*models.SkillCategory, 0)
-
-		if err = mapstructure.Decode(qJobResult.Record().GetByIndex(0), jobData); err != nil {
-			return nil, err
-		}
-
-		if err = mapstructure.Decode(qJobResult.Record().GetByIndex(1), &scDatas); err != nil {
-			return nil, err
-		}
-
-		if err = mapstructure.Decode(qJobResult.Record().GetByIndex(2), &skcDatas); err != nil {
-			return nil, err
-		}
-
-		jobData.ServiceCategories = scDatas
-		jobData.SkillCategories = skcDatas
-
-		jobDatas = append(jobDatas, jobData)
-	}
-
-	return jobDatas, nil
+	return jobDatas.([]*models.Job), nil
 }
 
 func (nj *Neo4jDatabase) GetEmployerHistoryJobs(euid string) ([]*models.Job, error) {
@@ -589,49 +608,51 @@ func (nj *Neo4jDatabase) GetEmployerHistoryJobs(euid string) ([]*models.Job, err
 	}
 	defer session.Close()
 
-	qResult, err := session.ReadTransaction(func(tx neo4j.Transaction) (i interface{}, err error) {
+	jobsData, err := session.ReadTransaction(func(tx neo4j.Transaction) (i interface{}, err error) {
 		qResult, err := tx.Run(getEmployerHistoryJobs, map[string]interface{}{
 			"euid": euid,
 			"history": models.JobStatusHistory,
-		})
-
-		if err != nil {
+		}); if err != nil {
 			return nil, err
 		}
 
-		return qResult, nil
+		jobsData := make([]*models.Job, 0)
+		for qResult.Next() {
+			jobData := &models.Job{}
+			scDatas := make([]*models.ServiceCategory, 0)
+			skcDatas := make([]*models.SkillCategory, 0)
+			skDatas := make([]*models.Skill, 0)
+
+			if err = mapstructure.Decode(qResult.Record().GetByIndex(0), jobData); err != nil {
+				return nil, err
+			}
+
+			if err = mapstructure.Decode(qResult.Record().GetByIndex(1), &scDatas); err != nil {
+				return nil, err
+			}
+
+			if err = mapstructure.Decode(qResult.Record().GetByIndex(2), &skcDatas); err != nil {
+				return nil, err
+			}
+			if err = mapstructure.Decode(qResult.Record().GetByIndex(3), &skDatas); err != nil {
+				return nil, err
+			}
+			jobData.MoneySpent = qResult.Record().GetByIndex(4).(float64)
+			jobData.ERating = float32(qResult.Record().GetByIndex(5).(float64))
+			jobData.NrCandidates = int(qResult.Record().GetByIndex(6).(int64))
+
+			jobData.ServiceCategories = scDatas
+			jobData.SkillCategories = skcDatas
+
+			jobsData = append(jobsData, jobData)
+		}
+
+		return jobsData, nil
 	}); if err != nil {
 		return nil, err
 	}
 
-	qJobsResults := qResult.(neo4j.Result)
-
-	jobsData := make([]*models.Job, 0)
-
-	for qJobsResults.Next() {
-		jobData := &models.Job{}
-		scDatas := make([]*models.ServiceCategory, 0)
-		skcDatas := make([]*models.SkillCategory, 0)
-
-		if err = mapstructure.Decode(qJobsResults.Record().GetByIndex(0), jobData); err != nil {
-			return nil, err
-		}
-
-		if err = mapstructure.Decode(qJobsResults.Record().GetByIndex(1), &scDatas); err != nil {
-			return nil, err
-		}
-
-		if err = mapstructure.Decode(qJobsResults.Record().GetByIndex(2), &skcDatas); err != nil {
-			return nil, err
-		}
-
-		jobData.ServiceCategories = scDatas
-		jobData.SkillCategories = skcDatas
-
-		jobsData = append(jobsData, jobData)
-	}
-
-	return jobsData, nil
+	return jobsData.([]*models.Job), nil
 }
 
 func (nj *Neo4jDatabase) GetFreelancerHistoryJobs(fuid string) ([]*models.Job, error) {
@@ -641,49 +662,52 @@ func (nj *Neo4jDatabase) GetFreelancerHistoryJobs(fuid string) ([]*models.Job, e
 	}
 	defer session.Close()
 
-	qResult, err := session.ReadTransaction(func(tx neo4j.Transaction) (i interface{}, err error) {
+	jobsData, err := session.ReadTransaction(func(tx neo4j.Transaction) (i interface{}, err error) {
 		qResult, err := tx.Run(getFreelancerHistoryJobs, map[string]interface{}{
 			"fuid": fuid,
 			"history": models.JobStatusHistory,
-		})
-
-		if err != nil {
+		}); if err != nil {
 			return nil, err
 		}
 
-		return qResult, nil
+		jobsData := make([]*models.Job, 0)
+
+		for qResult.Next() {
+			jobData := &models.Job{}
+			scDatas := make([]*models.ServiceCategory, 0)
+			skcDatas := make([]*models.SkillCategory, 0)
+			skDatas := make([]*models.Skill, 0)
+
+			if err = mapstructure.Decode(qResult.Record().GetByIndex(0), jobData); err != nil {
+				return nil, err
+			}
+
+			if err = mapstructure.Decode(qResult.Record().GetByIndex(1), &scDatas); err != nil {
+				return nil, err
+			}
+
+			if err = mapstructure.Decode(qResult.Record().GetByIndex(2), &skcDatas); err != nil {
+				return nil, err
+			}
+			if err = mapstructure.Decode(qResult.Record().GetByIndex(3), &skDatas); err != nil {
+				return nil, err
+			}
+			jobData.MoneySpent = qResult.Record().GetByIndex(4).(float64)
+			jobData.ERating = float32(qResult.Record().GetByIndex(5).(float64))
+			jobData.NrCandidates = int(qResult.Record().GetByIndex(6).(int64))
+
+			jobData.ServiceCategories = scDatas
+			jobData.SkillCategories = skcDatas
+
+			jobsData = append(jobsData, jobData)
+		}
+
+		return jobsData, nil
 	}); if err != nil {
 		return nil, err
 	}
 
-	qJobsResults := qResult.(neo4j.Result)
-
-	jobsData := make([]*models.Job, 0)
-
-	for qJobsResults.Next() {
-		jobData := &models.Job{}
-		scDatas := make([]*models.ServiceCategory, 0)
-		skcDatas := make([]*models.SkillCategory, 0)
-
-		if err = mapstructure.Decode(qJobsResults.Record().GetByIndex(0), jobData); err != nil {
-			return nil, err
-		}
-
-		if err = mapstructure.Decode(qJobsResults.Record().GetByIndex(1), &scDatas); err != nil {
-			return nil, err
-		}
-
-		if err = mapstructure.Decode(qJobsResults.Record().GetByIndex(2), &skcDatas); err != nil {
-			return nil, err
-		}
-
-		jobData.ServiceCategories = scDatas
-		jobData.SkillCategories = skcDatas
-
-		jobsData = append(jobsData, jobData)
-	}
-
-	return jobsData, nil
+	return jobsData.([]*models.Job), nil
 }
 
 func (nj *Neo4jDatabase) FinishJob(jid string) error {
@@ -693,14 +717,16 @@ func (nj *Neo4jDatabase) FinishJob(jid string) error {
 	}
 	defer session.Close()
 
+	log.Println(jid)
+
 	_, err = session.WriteTransaction(func(tx neo4j.Transaction) (interface{}, error) {
 		qResult, err := tx.Run(finishJob, map[string]interface{}{
 			"jid": jid,
 			"history": models.JobStatusHistory,
-		})
-
-		if err != nil || !qResult.Next() {
+		}); if err != nil {
 			return nil, err
+		}; if !qResult.Next() {
+			return nil, NoDataFoundError{Err: "Job not found"}
 		}
 
 		return qResult, nil

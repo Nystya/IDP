@@ -12,15 +12,18 @@ services:
       - postgres_data:/var/lib/postgresql/data/
     ports:
       - "5432:5432"
+    networks:
+      - backend
+    deploy:
+      placement:
+        constraints:
+          - node.role == manager
 
   graph_db:
     image: neo4j:latest
     ports:
     - "7474:7474"
     - "7687:7687"
-    expose:
-      - "7474"
-      - "7687"
     volumes:
     - neo4j_volume:/data
     - neo4j_volume:/logs
@@ -29,11 +32,81 @@ services:
     environment:
       NEO4J_AUTH: neo4j/parola_idp
       NEO4J_dbms.security.allow_csv_import_from_file_urls: "true"
+    networks:
+      - backend
 
   init_graph_db:
-    image: catalinvajaiala/idp_graph_init:latest
+    image: catalinvajaiala/idp_graphdb_init:latest
     depends_on:
       - graph_db
+    networks:
+      - backend
+    deploy:
+      placement:
+        constraints:
+          - node.role == manager
+
+  influxdb:
+    image: influxdb:latest
+    volumes:
+      # Mount for influxdb data directory
+      - influxdb_volume:/var/lib/influxdb
+    environment:
+      - INFLUXDB_DB=IDP
+      - INFLUXDB_HTTP_AUTH_ENABLED=true
+      - INFLUXDB_ADMIN_USER=admin
+      - INFLUXDB_ADMIN_PASSWORD=influxdbIDP2020
+      - INFLUXDB_USER=grafana_user
+      - INFLUXDB_USER_PASSWORD=influxdbGrafanaIDP
+    networks:
+      - frontend
+      - backend
+    deploy:
+      placement:
+        constraints:
+          - node.role == manager
+
+  grafana:
+    depends_on:
+      - influxdb
+    image: grafana/grafana:latest
+    ports:
+      - "80:3000"
+    configs:
+      - source: grafana_datasource_conf
+        target: /etc/grafana/provisioning/datasources/datasource.yml
+      - source: grafana_dashboards_conf
+        target: /etc/grafana/provisioning/dashboards/dashboards.yml
+    volumes:
+      - grafana_volume:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=asistent
+      - GF_SECURITY_ADMIN_PASSWORD=grafanaIDP2020
+    networks:
+      - frontend
+
+  mqtt:
+    image: eclipse-mosquitto
+    ports:
+      - "1883:1883"
+    configs:
+      - source: mqtt_conf
+        target: /mosquitto/config/mosquitto.conf
+    volumes:
+      - mqtt_volume:/mosquitto/data
+    networks:
+      - backend
+
+  adaptor:
+    depends_on:
+      - mqtt
+      - influxdb
+    image: sprc_adaptor
+    environment:
+      - DEBUG_DATA_FLOW
+    networks:
+      - backend
+
 
   authrevproxy:
     image: catalinvajaiala/idp:latest
@@ -41,13 +114,48 @@ services:
       - "8000:8000"
     depends_on:
       - authdb
+    networks:
+      - frontend
+      - backend
 
   jobs_manager:
     image: catalinvajaiala/idp_jobs_manager:latest
     depends_on:
       - graph_db
       - authrevproxy
+      - init_graph_db
+    ports:
+    - "8001:8001"
+    networks:
+      - backend
+
+  profiles_manager:
+    image: catalinvajaiala/idp_profiles_manager:latest
+    depends_on:
+      - graph_db
+      - init_graph_db
+    ports:
+      - "8002:8002"
+    networks:
+      - backend
+
+networks:
+  frontend:
+    driver: overlay  # change to overlay when you run in Swarm mode
+  backend:
+    driver: overlay
 
 volumes:
   postgres_data:
   neo4j_volume:
+  influxdb_volume:
+  grafana_volume:
+  mqtt_volume:
+
+configs:
+  mqtt_conf:
+    file: ./mosquitto/mosquitto.conf
+  grafana_datasource_conf:
+    file: ./grafana/datasource.yml
+  grafana_dashboards_conf:
+    file: ./grafana/dashboards.yml

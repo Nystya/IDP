@@ -41,7 +41,7 @@ class RegisterSerializer(serializers.Serializer):
         return get_adapter().clean_password(password)
 
     def validate_user_type(self, user_type):
-        if user_type != "firma" and user_type != "student":
+        if user_type != "employer" and user_type != "freelancer":
             raise serializers.ValidationError(_("Invalid user type."))
 
         return user_type
@@ -69,7 +69,7 @@ class RegisterSerializer(serializers.Serializer):
         user = UserModel.objects.create_user(email=email, password=data["password1"], user_type=user_type)
 
         # This is only if you want to send emails and shit
-        setup_user_email(request, user, [])
+        # setup_user_email(request, user, [])
 
         return user
 

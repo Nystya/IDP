@@ -4,6 +4,7 @@ import (
 	"github.com/google/uuid"
 	"idp/Jobs/database"
 	"idp/Jobs/models"
+	"idp/Jobs/messaging"
 	"time"
 )
 
@@ -23,6 +24,15 @@ type JobManager interface {
 	FinishJob(jid string) error
 }
 
+const (
+	MQTTHost     = "tcp://mqtt:1883"
+	MQTTClient   = "adaptor_client"
+	MQTTUsername = ""
+	MQTTPassword = ""
+	MQTTTopic    = "#"
+	MQTTQOS      = 0
+)
+
 type JobManagerConfig struct {
 	DBURL string
 	DBUser string
@@ -32,15 +42,16 @@ type JobManagerConfig struct {
 type JobManagerImpl struct {
 	conf JobManagerConfig
 	db database.Database
+	mq *messaging.MQTTConnection
 }
 
 func NewJobManagerImpl(conf JobManagerConfig) *JobManagerImpl {
 	return &JobManagerImpl{
 		conf: conf,
 		db: database.NewNeo4jDatabase(conf.DBURL, conf.DBUser, conf.DBPass),
+		mq: messaging.NewMQTTConnection(MQTTHost, MQTTClient, MQTTUsername, MQTTPassword, MQTTTopic, MQTTQOS),
 	}
 }
-
 
 func (jm *JobManagerImpl) GetAllServiceCategories() ([]*models.ServiceCategory, error) {
 	return jm.db.GetAllServiceCategories()
@@ -74,6 +85,13 @@ func (jm *JobManagerImpl) AddJob(job *models.Job) (*models.Job, error) {
 	if err := jm.db.CreateJob(newJob, job.ServiceCategories, job.SkillCategories); err != nil {
 		return nil, err
 	}
+
+	msg := map[string]interface{}{
+		"Wage": newJob.Wage,
+		"Places": newJob.Places,
+	}
+
+	go jm.mq.Client.Publish("jobs/" + newJob.EUID, MQTTQOS, false, msg)
 
 	return job, nil
 }

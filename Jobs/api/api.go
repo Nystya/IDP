@@ -118,6 +118,7 @@ func (js *JobServer) GetAllServices(void *pb.Void, server pb.Jobs_GetAllServices
 			ID:                   &pb.ID{ID: sc.ID},
 			Service:              sc.Category,
 		}
+		log.Println(pbsc)
 		if err := server.Send(pbsc); err != nil {
 			errs = append(errs, err.Error())
 		}
@@ -230,6 +231,7 @@ func (js *JobServer) PostJob(ctx context.Context, job *pb.CreateJob) (*pb.Job, e
 }
 
 func (js *JobServer) GetJob(ctx context.Context, id *pb.ID) (*pb.Job, error) {
+    log.Println("Here")
 	jobData, err := js.JobManager.GetJob(id.GetID())
 	if err != nil {
 		return nil, err
@@ -271,7 +273,7 @@ func (js *JobServer) ApplyForJob(ctx context.Context, ja *pb.JobApplication) (*p
 		return &pb.ErrorCode{Err: 500, Msg: "Could not create link"}, err
 	}
 
-	return nil, nil
+	return &pb.ErrorCode{Err: 200, Msg: ""}, nil
 }
 
 func (js *JobServer) GetApplicants(jid *pb.ID, server pb.Jobs_GetApplicantsServer) error {
@@ -279,7 +281,7 @@ func (js *JobServer) GetApplicants(jid *pb.ID, server pb.Jobs_GetApplicantsServe
 
 	freelancers, err := js.JobManager.GetApplicants(jid.GetID())
 	if err != nil {
-		return nil
+		return err
 	}
 
 	for _, freelancer := range freelancers {
@@ -297,18 +299,18 @@ func (js *JobServer) GetApplicants(jid *pb.ID, server pb.Jobs_GetApplicantsServe
 
 func (js *JobServer) SelectForJob(ctx context.Context, jobSel *pb.JobSelection) (*pb.ErrorCode, error) {
 	if err := js.JobManager.SelectFreelancerForJob(jobSel.GetJID().GetID(), jobSel.GetFUID().GetID()); err != nil {
-		return nil, err
+		return &pb.ErrorCode{Err: 500, Msg: "Could not create link"}, err
 	}
 
-	return nil, nil
+	return &pb.ErrorCode{Err: 200, Msg: ""}, nil
 }
 
 func (js *JobServer) GetAcceptedFreelancers(jid *pb.ID, server pb.Jobs_GetAcceptedFreelancersServer) error {
 	errs := make([]string, 0)
 
-	freelancers, err := js.JobManager.GetApplicants(jid.GetID())
+	freelancers, err := js.JobManager.GetAcceptedFreelancers(jid.GetID())
 	if err != nil {
-		return nil
+		return err
 	}
 
 	for _, freelancer := range freelancers {
@@ -326,6 +328,8 @@ func (js *JobServer) GetAcceptedFreelancers(jid *pb.ID, server pb.Jobs_GetAccept
 
 func (js *JobServer) GetAcceptedJobs(fid *pb.ID, server pb.Jobs_GetAcceptedJobsServer) error {
 	errs := make([]string , 0)
+
+    log.Println(fid.GetID())
 
 	jobs, err := js.JobManager.GetAcceptedJobsForFreelancer(fid.GetID())
 	if err != nil {
@@ -388,7 +392,11 @@ func (js *JobServer) GetEmployerHistoryJobs(id *pb.ID, server pb.Jobs_GetEmploye
 }
 
 func (js *JobServer) FinishJob(ctx context.Context, jid *pb.ID) (*pb.ErrorCode, error) {
-	return nil, js.JobManager.FinishJob(jid.GetID())
+	if err := js.JobManager.FinishJob(jid.GetID()); err != nil {
+	    return &pb.ErrorCode{Err: 500, Msg: "Could not create link"}, err
+	}
+
+	return &pb.ErrorCode{Err: 200, Msg: ""}, nil
 }
 
 func RunServer(ctx context.Context, conf *ServerConfig) error {

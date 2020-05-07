@@ -50,6 +50,7 @@ INSTALLED_APPS = [
     'rest_auth.registration',
 
     'Authentication',
+    'Proxy'
 ]
 
 MIDDLEWARE = [
@@ -91,6 +92,8 @@ WSGI_APPLICATION = 'IDP.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
+#         'ENGINE': 'django.db.backends.sqlite3',
+#         'NAME': 'db.sqlite3'
         'NAME': 'idp_users',
         'USER': 'postgres',
         'PASSWORD': 'parola_idp',

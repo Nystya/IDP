@@ -1,12 +1,18 @@
 from rest_framework.authtoken.models import Token
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
-from django.db import models
+from django.db import models, transaction
 from django.utils import timezone
 
 from django.conf import settings
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 
+import grpc
+import Proto.api_pb2 as pb
+import Proto.api_pb2_grpc as api
+
+profilesChannel = grpc.insecure_channel('profiles_manager:8002')
+profilesApi = api.ProfilesStub(profilesChannel)
 
 class UserManager(BaseUserManager):
     def _create_user(self, email, password, user_type, is_staff, is_superuser, **extra_fields):
@@ -46,11 +52,11 @@ class User(AbstractBaseUser, PermissionsMixin):
     is_active = models.BooleanField(default=True)
     is_verified = models.BooleanField(default=False)
 
-    EMPLOYER = 'firma'
-    EMPLOYEE = 'student'
+    EMPLOYER = 'employer'
+    EMPLOYEE = 'freelancer'
     SUPER = 'SU'
     TYPE = [(EMPLOYER, 'Employer'), (EMPLOYEE, 'Employee'), (SUPER, 'Admin')]
-    user_type = models.CharField(max_length=8, choices=TYPE)
+    user_type = models.CharField(max_length=10, choices=TYPE)
 
     last_login = models.DateTimeField(null=True, blank=True)
     date_joined = models.DateTimeField(auto_now_add=True)
@@ -85,3 +91,43 @@ def create_auth_token(sender, instance=None, created=False, **kwargs):
     if created:
         if not settings.REST_USE_JWT:
             Token.objects.create(user=instance)
+
+@receiver(post_save, sender=settings.AUTH_USER_MODEL)
+def create_employer_profile(sender, instance=None, created=False, **kwargs):
+    if created:
+        print("Received signal on employer function")
+        user = instance
+        if user.user_type == user.EMPLOYER:
+            print("Trying to create employer profile")
+            try:
+                employerProfile = pb.EditEmployerProfileRequest(
+                    EUID=pb.ID(ID=user.id.__str__()),
+                    phone="",
+                    lastName="",
+                    firstName="",
+                )
+                profilesApi.CreateEmployerProfile(employerProfile)
+            except Exception as e:
+                print("Could not create employer profile: ", e)
+
+
+@receiver(post_save, sender=settings.AUTH_USER_MODEL)
+def create_employee_profile(sender, instance=None, created=False, **kwargs):
+    if created:
+        print("Received signal on freelancer function")
+        user = instance
+        if user.user_type == user.EMPLOYEE:
+            print("Trying to create freelancer profile")
+            try:
+                freelancerProfile = pb.EditFreelancerProfileRequest(
+                    FUID=pb.ID(ID=user.id.__str__()),
+                    phone="",
+                    lastName="",
+                    firstName="",
+                    description="",
+                )
+
+                profilesApi.CreateFreelancerProfile(freelancerProfile)
+            except Exception as e:
+                print("Could not create freelancer profile: ", e)
+

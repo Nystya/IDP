@@ -72,6 +72,8 @@ message EditFreelancerProfileRequest {
 }
 
 service Profiles {
+    rpc CreateEmployerProfile(EditEmployerProfileRequest) returns (ErrorCode);
+    rpc CreateFreelancerProfile(EditFreelancerProfileRequest) returns (ErrorCode);
     rpc EditEmployerProfile(EditEmployerProfileRequest) returns (ErrorCode);
     rpc EditFreelancerProfile(EditFreelancerProfileRequest) returns (ErrorCode);
     rpc GetEmployerProfile(ID) returns (EmployerProfile);

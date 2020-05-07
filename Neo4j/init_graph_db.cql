@@ -10,16 +10,16 @@ CREATE CONSTRAINT ON (sc:SkillCategory) ASSERT sc.id is UNIQUE;
 
 LOAD CSV WITH HEADERS FROM "https://idp-graphql-init-scripts.s3.eu-central-1.amazonaws.com/serviceCategories.csv"
 AS row
-CREATE (sc:ServiceCategory {id: toInteger(row.id), category: row.category});
+CREATE (sc:ServiceCategory {id: row.id, category: row.category});
 
 LOAD CSV WITH HEADERS FROM "https://idp-graphql-init-scripts.s3.eu-central-1.amazonaws.com/skillCategories.csv"
 AS row
-CREATE (sc:SkillCategory {id: toInteger(row.id), category: row.skillCategory});
+CREATE (sc:SkillCategory {id: row.id, category: row.skillCategory});
 
 LOAD CSV WITH HEADERS FROM "https://idp-graphql-init-scripts.s3.eu-central-1.amazonaws.com/skillCategories.csv"
 AS row
 MATCH (a:ServiceCategory), (b:SkillCategory)
-WHERE (a.id = toInteger(row.serviceCategory)) AND (b.id = toInteger(row.id))
+WHERE (a.id = row.serviceCategory) AND (b.id = row.id)
 MERGE (a)<-[r:IsSubclassOf]-(b);
 
  

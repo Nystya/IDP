@@ -3,5 +3,5 @@
   "DBUser": "neo4j",
   "DBPass": "parola_idp",
   "transport": "tcp",
-  "port": "8001"
+  "port": "8002"
 }
