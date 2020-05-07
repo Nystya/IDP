@@ -71,7 +71,7 @@ services:
       - influxdb
     image: grafana/grafana:latest
     ports:
-      - "80:3000"
+      - "8080:3000"
     configs:
       - source: grafana_datasource_conf
         target: /etc/grafana/provisioning/datasources/datasource.yml
@@ -88,7 +88,7 @@ services:
   mqtt:
     image: eclipse-mosquitto
     ports:
-      - "1883:1883"
+      - "1884:1883"
     configs:
       - source: mqtt_conf
         target: /mosquitto/config/mosquitto.conf
