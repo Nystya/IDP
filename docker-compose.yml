@@ -98,10 +98,10 @@ services:
       - backend
 
   adaptor:
+    image: catalinvajaiala/idp_adaptor:latest
     depends_on:
       - mqtt
       - influxdb
-    image: sprc_adaptor
     environment:
       - DEBUG_DATA_FLOW
     networks:
